@@ -208,7 +208,7 @@ public static class GameExtras
     // Only formats a browser plays directly: the plugin answers every extra as direct play, without transcoding.
     private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase) { ".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".flac", ".wav" };
 
-    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".m4v", ".webm", ".mov" };
+    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".m4v", ".webm", ".mov", ".mkv" };
 
     /// <summary>
     /// The image extensions in Jellyfin's order; copy of BaseItem.SupportedImageExtensions (Jellyfin 10.10.7), kept here

@@ -858,7 +858,7 @@
         <div class="pbRow pbRowCheckbox"><label for="EnableSteamSpecialFeatures">Enable Steam Special Features</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="EnableSteamSpecialFeatures" name="EnableSteamSpecialFeatures" type="checkbox"><span class="pbDescInline">Plays the videos of the game's Steam store page in Jellyfin's player, next to the special features.</span></label></div></div>
         <div class="pbRow pbRowMerged" id="pbSpecialsTitleRow"><label class="pbRowLabelSpan" for="SpecialFeaturesTitle">Special Features Title</label>
-            <select id="SpecialFeaturesTitle" name="SpecialFeaturesTitle" is="emby-select" class="emby-select-withcolor emby-select pbSelectCompact"><option value="">Special Features</option><option value="Extras">Extras</option><option value="BonusMaterial">Bonus Material</option><option value="Own">Custom</option></select>
+            <select id="SpecialFeaturesTitle" name="SpecialFeaturesTitle" is="emby-select" class="emby-select-withcolor emby-select pbSelectCompact"><option value="">Special Features</option><option value="Extras">Extras</option><option value="HeaderVideos">Videos</option><option value="BonusMaterial">Bonus Material</option><option value="Own">Custom</option></select>
             <div class="pbDesc">The title of the merged Special Features row, as a row or as a divider.</div></div>
         <div class="pbRow pbRowMerged" id="pbSpecialsLabelRow"><label class="pbRowLabelSpan" for="SpecialFeaturesLabel">Custom Special Features Title</label>
             <input id="SpecialFeaturesLabel" name="SpecialFeaturesLabel" type="text" class="pbTextCompact" maxlength="40">
@@ -944,6 +944,15 @@
             <div class="pbDesc">Seconds the video waits before the first video starts.</div></div>
         <div class="pbRow pbRowCheckbox"><label for="ThemeDelayedStartEveryVideo">Delayed Start Before Every Video</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ThemeDelayedStartEveryVideo" name="ThemeDelayedStartEveryVideo" type="checkbox"><span class="pbDescInline">Waits the delay before every next video and repeat too, not only before the first.</span></label></div></div>
+        <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeVideoStartPosition">Start Position</label>
+            <select id="ThemeVideoStartPosition" name="ThemeVideoStartPosition" is="emby-select" class="emby-select-withcolor emby-select pbSelectCompact"><option value="Beginning">From Beginning</option><option value="Random">Random Timestamp</option></select>
+            <div class="pbDesc">Where a video starts: at its beginning, or at a random point of its length.</div></div>
+        <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeVideoStartMinPercent">Random Start Min</label>
+            <div class="pbNumBox"><input id="ThemeVideoStartMinPercent" name="ThemeVideoStartMinPercent" type="number" class="pbNumberCompact" aria-label="Random Start Min" min="0" max="100" step="1" data-whole="1"><span class="pbUnit" aria-hidden="true">%</span></div>
+            <div class="pbDesc">The earliest point a random start can land on, in percent of the video's length.</div></div>
+        <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeVideoStartMaxPercent">Random Start Max</label>
+            <div class="pbNumBox"><input id="ThemeVideoStartMaxPercent" name="ThemeVideoStartMaxPercent" type="number" class="pbNumberCompact" aria-label="Random Start Max" min="0" max="100" step="1" data-whole="1"><span class="pbUnit" aria-hidden="true">%</span></div>
+            <div class="pbDesc">The latest point a random start can land on, in percent of the video's length.</div></div>
         </div>
             </div>
         </div>
@@ -972,6 +981,15 @@
             <div class="pbDesc">Seconds the music waits before the first song starts.</div></div>
         <div class="pbRow pbRowCheckbox"><label for="ThemeDelayedStartEverySong">Delayed Start Before Every Song</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ThemeDelayedStartEverySong" name="ThemeDelayedStartEverySong" type="checkbox"><span class="pbDescInline">Waits the delay before every next song and repeat too, not only before the first.</span></label></div></div>
+        <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeStartPosition">Start Position</label>
+            <select id="ThemeStartPosition" name="ThemeStartPosition" is="emby-select" class="emby-select-withcolor emby-select pbSelectCompact"><option value="Beginning">From Beginning</option><option value="Random">Random Timestamp</option></select>
+            <div class="pbDesc">Where a song starts: at its beginning, or at a random point of its length.</div></div>
+        <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeStartMinPercent">Random Start Min</label>
+            <div class="pbNumBox"><input id="ThemeStartMinPercent" name="ThemeStartMinPercent" type="number" class="pbNumberCompact" aria-label="Random Start Min" min="0" max="100" step="1" data-whole="1"><span class="pbUnit" aria-hidden="true">%</span></div>
+            <div class="pbDesc">The earliest point a random start can land on, in percent of the song's length.</div></div>
+        <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeStartMaxPercent">Random Start Max</label>
+            <div class="pbNumBox"><input id="ThemeStartMaxPercent" name="ThemeStartMaxPercent" type="number" class="pbNumberCompact" aria-label="Random Start Max" min="0" max="100" step="1" data-whole="1"><span class="pbUnit" aria-hidden="true">%</span></div>
+            <div class="pbDesc">The latest point a random start can land on, in percent of the song's length.</div></div>
         <div class="pbRow pbRowMerged"><label class="pbRowLabelSpan" for="ThemeFadeInSeconds">Fade In</label>
             <div class="pbNumBox"><input id="ThemeFadeInSeconds" name="ThemeFadeInSeconds" type="number" class="pbNumberCompact" aria-label="Fade In" min="0" max="30" step="0.5"><span class="pbUnit" aria-hidden="true">s</span></div>
             <div class="pbDesc">Seconds a song takes to reach its volume at each start, where 0 is off.</div></div>
@@ -1716,6 +1734,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         VideosDisplay: { type: 'select', tab: 'extras', def: 'Merged' },
         VideosKeepSlotsTogether: { type: 'checkbox', tab: 'extras', def: false },
         VideosSort: { type: 'select', tab: 'extras', def: 'NameAscending' },
+        VideosRowOrder: { type: 'videorows', tab: 'extras', def: 'extras,clips,behindthescenes,deletedscenes,interviews,scenes,samples,shorts,featurettes,slot1,slot2,slot3,slot4,slot5,slot6,slot7,slot8,slot9,slot10' },
         VideosTileShape: { type: 'select', tab: 'extras', def: 'Landscape' },
         VideoExtrasOn: { type: 'checkbox', tab: 'extras', def: true },
         VideoExtrasMerge: { type: 'checkbox', tab: 'extras', def: true },
@@ -1831,6 +1850,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         ThemeOnVersionSwitch: { type: 'select', tab: 'extras', def: 'LookForNewTheme' },
         ThemeVolumePercent: { type: 'number', tab: 'extras', def: 40 },
         ThemeDelayedStartSeconds: { type: 'number', tab: 'extras', def: 0 },
+        ThemeStartPosition: { type: 'select', tab: 'extras', def: 'Beginning' },
+        ThemeStartMinPercent: { type: 'number', tab: 'extras', def: 0 },
+        ThemeStartMaxPercent: { type: 'number', tab: 'extras', def: 50 },
         ThemeFadeInSeconds: { type: 'number', tab: 'extras', def: 1 },
         ThemeFadeOutSeconds: { type: 'number', tab: 'extras', def: 1 },
         ThemeLoopMusic: { type: 'checkbox', tab: 'extras', def: true },
@@ -1846,6 +1868,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         ThemeVideoOnVersionSwitch: { type: 'select', tab: 'extras', def: 'LookForNewTheme' },
         ThemeVideoVolumePercent: { type: 'number', tab: 'extras', def: 0 },
         ThemeVideoDelayedStartSeconds: { type: 'number', tab: 'extras', def: 0 },
+        ThemeVideoStartPosition: { type: 'select', tab: 'extras', def: 'Beginning' },
+        ThemeVideoStartMinPercent: { type: 'number', tab: 'extras', def: 0 },
+        ThemeVideoStartMaxPercent: { type: 'number', tab: 'extras', def: 50 },
         ThemeLoopVideo: { type: 'checkbox', tab: 'extras', def: true },
         ThemeDelayedStartEveryVideo: { type: 'checkbox', tab: 'extras', def: false },
         CoverMode: { type: 'select', tab: 'artwork', def: 'Keep' },
@@ -1997,7 +2022,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             ScreenshotsTitle: T3('Screenshots', 'Gameplay', 'Gallery'),
             DocumentsTitle: T3('Documents', 'Library', 'ManualsAndBooks'),
             WallpapersTitle: T3('WallpapersAndArtwork', 'Wallpapers', 'Artwork', 'Gallery'),
-            SpecialFeaturesTitle: T3('SpecialFeatures', 'Extras', 'BonusMaterial'),
+            SpecialFeaturesTitle: T3('SpecialFeatures', 'Extras', 'BonusMaterial', 'HeaderVideos'),
             SteamSpecialFeaturesTitle: T3('SteamSpecialFeatures', 'SteamVideos', 'SteamTrailers'),
             SoundtrackTitle: T3('Soundtrack', 'Music', 'OriginalSoundtrack'),
         };
@@ -2250,6 +2275,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         else if (t === 'term') setTerm(v);
         else if (t === 'order') setOrder(v);
         else if (t === 'roworder') setRowOrder(v);
+        else if (t === 'videorows') setVideoRowOrder(v);
         else if (t === 'keyorder') setKeyOrder(id, v);
         else if (t === 'actions') {
             // an action the store cannot have shows unticked (GameStart.Decide ignores it); a store without games shows every box unticked,
@@ -2283,6 +2309,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         // the stored ticks, not the display: with the limiter off every box shows ticked and greyed (deps)
         if (t === 'hosts') return hostBoxes().filter(function (c) { return c.dataset.kept === '1'; }).map(function (c) { return c.dataset.host; }).join(',');
         if (t === 'hostorder') return hostRows().map(function (r) { return r.dataset.hostRow; }).join(',');
+        if (t === 'videorows') return videoMovableRows().map(function (r) { return r.dataset.vkey; }).join(',');
         if (t === 'media') return mediaBoxes(id).filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.media; }).join(',');
         if (t === 'number') return Number(el.value);
         if (t === 'list') { var lines = el.value.split('\n').map(function (w) { return w.trim(); }).filter(function (w) { return w; }); return lines.length ? lines.join('\n') + '\n' : ''; }
@@ -2477,15 +2504,41 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     var VIDEO_ALIASES = { extras: 'Extras', extra: 'Extras', other: 'Extras', clips: 'Clips', 'behind the scenes': 'Behind the Scenes', 'deleted scenes': 'Deleted Scenes', interviews: 'Interviews',
         scenes: 'Scenes', samples: 'Samples', shorts: 'Shorts', featurettes: 'Featurettes' };
     function videoSlotRows() { return [].slice.call($('VideoSlots').querySelectorAll('.pbShotSlotRow')); }
+    // The rows that can be moved: the nine types and the ten own slots (Steam stays on top). Their order is VideosRowOrder.
+    function videoMovableRows() { return [].slice.call($('VideoSlots').querySelectorAll('.pbShotSlotRow[data-vkey]')); }
+    function videoArrows(name) {
+        return '<div class="pbOrderItemButtons"><button type="button" class="pbOrderBtn pbOrderUp" aria-label="Move ' + name + ' up">&#9650;</button>'
+            + '<button type="button" class="pbOrderBtn pbOrderDown" aria-label="Move ' + name + ' down">&#9660;</button></div>';
+    }
+    function videoOrderButtons() {
+        var rows = videoMovableRows();
+        rows.forEach(function (row, i) { row.querySelector('.pbOrderUp').disabled = i === 0; row.querySelector('.pbOrderDown').disabled = i === rows.length - 1; });
+    }
+    // An own slot shows its label in the first column, "Slot n" while it has none.
+    function videoRowNames() {
+        videoMovableRows().forEach(function (row) {
+            var label = row.querySelector('.pbSlotLabelText');
+            if (label) row.querySelector('.pbShotSlotNo').textContent = label.value.trim() || 'Slot ' + row.dataset.vkey.slice(4);
+        });
+    }
+    function setVideoRowOrder(v) {
+        var box = $('VideoSlots'), rows = videoMovableRows(), byKey = {};
+        rows.forEach(function (r) { byKey[r.dataset.vkey] = r; });
+        var listed = keyList(v).filter(function (k, i, all) { return byKey[k] && all.indexOf(k) === i; });
+        PB_FIELDS.VideosRowOrder.def.split(',').forEach(function (k) { if (listed.indexOf(k) < 0) listed.push(k); });
+        listed.forEach(function (k) { box.appendChild(byKey[k]); });
+        videoOrderButtons();
+    }
     function buildVideoSlots() {
         var tick = function (id, cls, label) { return '<label class="emby-checkbox-label"><input type="checkbox" id="' + id + '" name="' + id + '" class="' + cls + '" aria-label="' + label + '"><span></span></label>'; };
         var text = function (id, cls, label, max) { return '<input type="text" id="' + id + '" name="' + id + '" class="pbTextCompact ' + cls + '" maxlength="' + max + '" aria-label="' + label + '">'; };
         var fixed = function (key, name, tip, on, folder, titleId, labelId, mergeId, options, extra) {
-            return '<div class="pbRow pbShotSlotRow pbVideoFixedRow" data-key="' + key + '"' + extra + '><span class="pbShotSlotNo">' + name + '</span><div class="pbShotSlotFields">'
+            return '<div class="pbRow pbShotSlotRow pbVideoFixedRow" data-key="' + key + '"' + (key === 'steam' ? '' : ' data-vkey="' + key + '"') + extra + '><span class="pbShotSlotNo">' + name + '</span><div class="pbShotSlotFields">'
                 + (on || '<span class="pbShotTick pbVideoDash" title="Switched in Enable Steam Special Features" aria-hidden="true">&#8211;</span>')
                 + '<span class="pbShotCell pbShotCellPath"><span class="pbVideoPath" title="' + tip + '">' + folder + '</span></span>'
                 + '<span class="pbShotCell pbShotCellLabel"><select is="emby-select" id="' + titleId + '" name="' + titleId + '" class="emby-select-withcolor emby-select pbSelectCompact pbSlotLabel" aria-label="' + name + ' label">'
-                + options + '</select></span><span class="pbShotCell pbShotCellOwn">' + text(labelId, 'pbSlotOwn', name + ' custom label', 40) + '</span>' + tick(mergeId, 'pbSlotMerge', name + ' merge') + '</div></div>';
+                + options + '</select></span><span class="pbShotCell pbShotCellOwn">' + text(labelId, 'pbSlotOwn', name + ' custom label', 40) + '</span>' + tick(mergeId, 'pbSlotMerge', name + ' merge')
+                + (key === 'steam' ? '' : videoArrows(name)) + '</div></div>';
         };
         var html = fixed('steam', 'Steam', 'Steam special features come from Steam, not from a folder.', null, 'Steam', 'SteamSpecialFeaturesTitle', 'SteamSpecialFeaturesLabel', 'SteamSpecialsMerge',
             '<option value="">Steam Special Features</option><option value="SteamVideos">Steam Videos</option><option value="SteamTrailers">Steam Trailers</option><option value="Own">Custom</option>',
@@ -2494,16 +2547,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             html += fixed(t[0].toLowerCase(), t[1], t[3], tick('Video' + t[0] + 'On', 'pbSlotOn', t[1] + ' in use'), t[2], 'Video' + t[0] + 'Title', 'Video' + t[0] + 'Label', 'Video' + t[0] + 'Merge',
                 '<option value="">' + t[1] + '</option><option value="Own">Custom</option>', ' data-needs="EnableExtras"');
         });
-        html += '<div class="pbRow pbVideoSub" aria-hidden="true">Own slots</div>';
         for (var n = 1; n <= 10; n++) {
             var name = 'Slot ' + n;
-            html += '<div class="pbRow pbShotSlotRow pbVideoOwnRow" data-needs="EnableExtras"><span class="pbShotSlotNo">' + name + '</span><div class="pbShotSlotFields">' + tick('VideoSlot' + n + 'On', 'pbSlotOn', name + ' in use')
+            html += '<div class="pbRow pbShotSlotRow pbVideoOwnRow" data-vkey="slot' + n + '" data-needs="EnableExtras"><span class="pbShotSlotNo">' + name + '</span><div class="pbShotSlotFields">' + tick('VideoSlot' + n + 'On', 'pbSlotOn', name + ' in use')
                 + '<span class="pbShotCell pbShotCellParent">' + text('VideoSlot' + n + 'Parent', 'pbSlotParent', name + ' parent folder', 100) + '</span>'
                 + '<span class="pbShotCell pbShotCellFolder">' + text('VideoSlot' + n + 'Folder', 'pbSlotFolder', name + ' folder', 100) + '</span>'
                 + '<span class="pbShotCell pbShotCellWide pbShotCellOwn">' + text('VideoSlot' + n + 'Label', 'pbSlotOwn pbSlotLabelText', name + ' label', 40) + '</span>'
-                + tick('VideoSlot' + n + 'Merge', 'pbSlotMerge', name + ' merge') + '</div></div>';
+                + tick('VideoSlot' + n + 'Merge', 'pbSlotMerge', name + ' merge') + videoArrows(name) + '</div></div>';
         }
         $('VideoSlots').innerHTML = html;
+        videoOrderButtons();
     }
     buildVideoSlots();
     // ScreenshotsFolder / a slot folder as Screenshots.FolderNameError reads it (the value trimmed): null = usable. The area folder must not be a folder Jellyfin reads itself.
@@ -3327,6 +3380,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         fade($('ThemeDelayedStartEverySong').closest('.pbRow'), !getField('EnableThemeMusic') || !(Number(getField('ThemeDelayedStartSeconds')) > 0));
         fade($('ThemeFadeEverySong').closest('.pbRow'), !getField('EnableThemeMusic') || !(Number(getField('ThemeFadeInSeconds')) > 0 || Number(getField('ThemeFadeOutSeconds')) > 0));
         fade($('ThemeDelayedStartEveryVideo').closest('.pbRow'), !getField('EnableThemeVideos') || !(Number(getField('ThemeVideoDelayedStartSeconds')) > 0));
+        ['ThemeStartMinPercent', 'ThemeStartMaxPercent'].forEach(function (id) { fade($(id).closest('.pbRow'), !getField('EnableThemeMusic') || getField('ThemeStartPosition') !== 'Random'); });
+        ['ThemeVideoStartMinPercent', 'ThemeVideoStartMaxPercent'].forEach(function (id) { fade($(id).closest('.pbRow'), !getField('EnableThemeVideos') || getField('ThemeVideoStartPosition') !== 'Random'); });
+        videoRowNames();
         // Several sources: the choice needs two sources ticked; Keep Sources Together acts only with All Together and Play All Shuffled
         var severalSources = getField('ThemeVideoSources').split(',').filter(function (k) { return k; }).length >= 2;
         fade($('pbThemeSeveralRow'), !getField('EnableThemeVideos') || !severalSources || getField('ThemeVideoPlayMode') === 'FirstOnly');
@@ -3521,6 +3577,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         (btn.disabled ? item.querySelector(btn.classList.contains('pbOrderUp') ? '.pbOrderDown' : '.pbOrderUp') : btn).focus();
     }); });
 
+    $('VideoSlots').addEventListener('click', function (e) {
+        var btn = e.target.closest('.pbOrderBtn'); if (!btn || btn.disabled) return;
+        var row = btn.closest('.pbShotSlotRow'), box = $('VideoSlots');
+        if (btn.classList.contains('pbOrderUp')) box.insertBefore(row, row.previousElementSibling);
+        else box.insertBefore(row.nextElementSibling, row);
+        videoOrderButtons();
+        deps();
+        (btn.disabled ? row.querySelector(btn.classList.contains('pbOrderUp') ? '.pbOrderDown' : '.pbOrderUp') : btn).focus();
+    });
+    $('VideoSlots').addEventListener('input', videoRowNames);
     $('ScreenshotSlots').addEventListener('click', function (e) {
         var btn = e.target.closest('.pbOrderBtn'); if (!btn || btn.disabled) return;
         var row = btn.closest('.pbShotSlotRow'), box = $('ScreenshotSlots');

@@ -1253,7 +1253,7 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
     {
         var specials = page.Where(e => e.Kind == ExtraKind.Special).ToList();
         var plan = VideoRows.Plan(config, specials, steamAll.Count > 0);
-        var rows = specials.Where(e => !plan.NativeKeys.Contains(VideoRows.RowKey(e))).GroupBy(VideoRows.RowKey).OrderBy(g => VideoRows.TableIndex(g.Key))
+        var rows = specials.Where(e => !plan.NativeKeys.Contains(VideoRows.RowKey(e))).GroupBy(VideoRows.RowKey).OrderBy(g => VideoRows.TableIndex(config, g.Key))
             .Select(g => (g.Key, VideoRows.OrderRow(config, g, g.Key, seed))).ToList();
         return (rows, steamAll.Count > 0 && !plan.SteamMerged);
     }
@@ -1280,7 +1280,7 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
     public static int NativeAt(IReadOnlyList<GameExtra> page, IReadOnlyList<SteamVideoItem> steamAll, Configuration.PluginConfiguration config)
     {
         var plan = VideoRows.Plan(config, page.Where(e => e.Kind == ExtraKind.Special), steamAll.Count > 0);
-        var first = plan.NativeKeys.Select(VideoRows.TableIndex).DefaultIfEmpty(99).Min();
+        var first = plan.NativeKeys.Select(k => VideoRows.TableIndex(config, k)).DefaultIfEmpty(99).Min();
         return plan.SteamMerged ? 0 : first;
     }
 
@@ -1363,7 +1363,7 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         {
             var page = files.Skip(Math.Max(row is null ? 0 : from, 0)).Take(VideoRows.FirstTiles).ToList();
             var items = (await Task.WhenAll(page.Select(e => ExtraDto(e, canDownload))).ConfigureAwait(false)).ToList();
-            rows.Add(new { key, before = VideoRows.TableIndex(key) < nativeAt, title = key.StartsWith("slot", StringComparison.Ordinal) ? "Own" : VideoRows.TypeTitle(config, Enum.Parse<VideoRowType>(key, true)), label = Label(key), count = files.Count, items });
+            rows.Add(new { key, before = VideoRows.TableIndex(config, key) < nativeAt, title = key.StartsWith("slot", StringComparison.Ordinal) ? "Own" : VideoRows.TypeTitle(config, Enum.Parse<VideoRowType>(key, true)), label = Label(key), count = files.Count, items });
         }
 
         return new

@@ -9570,7 +9570,7 @@
         var fadeIn = Math.max(0, s.FadeIn || 0);
         var fadeOut = Math.max(0, s.FadeOut || 0);
         var first = event === 'start';
-        var native = n === 1 && !!s.Loop && !(s.DelayedStartEvery && delay > 0) && (!s.FadeEvery || (fadeIn === 0 && fadeOut === 0));
+        var native = n === 1 && !!s.Loop && !s.StartRandom && !(s.DelayedStartEvery && delay > 0) && (!s.FadeEvery || (fadeIn === 0 && fadeOut === 0));
         return {
             delay: first || s.DelayedStartEvery ? delay : 0,
             fadeIn: first || s.FadeEvery ? fadeIn : 0,
@@ -9776,6 +9776,17 @@
                     }
                 };
                 p.fadeInSeconds = plan.fadeIn;
+            }
+            if (p.settings.StartRandom) {
+                var seek = function () {
+                    el.removeEventListener('loadedmetadata', seek);
+                    if (token === p.token && isFinite(el.duration) && el.duration > 0) {
+                        var low = Math.max(0, p.settings.StartMin || 0);
+                        var high = Math.max(low, p.settings.StartMax === undefined ? 50 : p.settings.StartMax);
+                        el.currentTime = el.duration * (low + Math.random() * (high - low)) / 100;
+                    }
+                };
+                el.addEventListener('loadedmetadata', seek);
             }
             var started = el.play();
             var shown = function () {

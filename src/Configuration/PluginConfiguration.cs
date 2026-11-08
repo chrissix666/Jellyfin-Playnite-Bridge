@@ -219,6 +219,13 @@ public enum ThemePlayMode
     AllShuffled
 }
 
+/// <summary>Where a theme song or video starts: at its beginning, or at a random point between two percentages of its length.</summary>
+public enum ThemeStartPosition
+{
+    Beginning,
+    Random
+}
+
 /// <summary>Theme videos with several videos: the first only, all in order, or all shuffled.</summary>
 public enum ThemeVideoPlayMode
 {
@@ -601,6 +608,15 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Themes tab: seconds the theme music waits before the first song starts.</summary>
     public double ThemeDelayedStartSeconds { get; set; }
 
+    /// <summary>Themes tab: where each song of the theme music starts.</summary>
+    public ThemeStartPosition ThemeStartPosition { get; set; } = ThemeStartPosition.Beginning;
+
+    /// <summary>Themes tab: the lowest random start of a song, in percent of its length.</summary>
+    public int ThemeStartMinPercent { get; set; }
+
+    /// <summary>Themes tab: the highest random start of a song, in percent of its length.</summary>
+    public int ThemeStartMaxPercent { get; set; } = 50;
+
     /// <summary>Themes tab: seconds a theme song fades in at each start.</summary>
     public double ThemeFadeInSeconds { get; set; } = 1;
 
@@ -646,6 +662,15 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Themes tab: seconds the theme video waits before the first video starts.</summary>
     public double ThemeVideoDelayedStartSeconds { get; set; }
 
+    /// <summary>Themes tab: where each theme video starts.</summary>
+    public ThemeStartPosition ThemeVideoStartPosition { get; set; } = ThemeStartPosition.Beginning;
+
+    /// <summary>Themes tab: the lowest random start of a video, in percent of its length.</summary>
+    public int ThemeVideoStartMinPercent { get; set; }
+
+    /// <summary>Themes tab: the highest random start of a video, in percent of its length.</summary>
+    public int ThemeVideoStartMaxPercent { get; set; } = 50;
+
     /// <summary>Themes tab: the theme videos go round again after the last one (off: they play once and the page's backdrop returns).</summary>
     public bool ThemeLoopVideo { get; set; } = true;
 
@@ -669,6 +694,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Videos tab: the order inside a type or slot (Date = the file's last write time; Steam clips keep Steam's order).</summary>
     public ScreenshotSort VideosSort { get; set; } = ScreenshotSort.NameAscending;
+
+    /// <summary>Videos tab: the order of the types and own slots in the merged row and among the rows of their own, as keys (the nine types, slot1 to slot10), comma-separated.</summary>
+    public string VideosRowOrder { get; set; } = "extras,clips,behindthescenes,deletedscenes,interviews,scenes,samples,shorts,featurettes,slot1,slot2,slot3,slot4,slot5,slot6,slot7,slot8,slot9,slot10";
 
     /// <summary>Videos tab: the shape of the tiles of the rows the plugin draws, fixed or taken from the pictures of the row.</summary>
     public TileShape VideosTileShape { get; set; } = TileShape.Landscape;
@@ -1183,7 +1211,7 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Screenshots: with Picture Fit Adaptive, the most of a picture (percent, 5 to 50) a crop may cut off; a picture that would lose more is shown on the blurred fill.</summary>
     public int ScreenshotsCropLimitPercent { get; set; } = 20;
 
-    /// <summary>The title of the local special features as a key (SpecialFeatures, Extras, BonusMaterial or Own for the custom text); empty is the default.</summary>
+    /// <summary>The title of the local special features as a key (SpecialFeatures, Extras, BonusMaterial, HeaderVideos or Own for the custom text); empty is the default.</summary>
     public string SpecialFeaturesTitle { get; set; } = "";
 
     /// <summary>The title of the Steam special features as a key (SteamSpecialFeatures, SteamVideos, SteamTrailers or Own for SteamSpecialFeaturesLabel); empty is the default.</summary>

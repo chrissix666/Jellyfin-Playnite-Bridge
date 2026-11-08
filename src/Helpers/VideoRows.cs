@@ -136,18 +136,31 @@ public static class VideoRows
     public static string RowKey(GameExtra extra) =>
         extra.Slot > 0 ? "slot" + extra.Slot : TypeOf(extra.ExtraType) is VideoRowType t ? TypeKey(t) : TypeKey(VideoRowType.Extras);
 
-    /// <summary>The position of a row key in the table (types 1 to 9, slots 10 to 19); 99 for an unknown key.</summary>
-    public static int TableIndex(string key)
+    /// <summary>The keys of all rows in their default order: the nine types, then the ten own slots.</summary>
+    public static readonly IReadOnlyList<string> DefaultOrder = Types.Select(TypeKey).Concat(Enumerable.Range(1, 10).Select(n => "slot" + n)).ToList();
+
+    /// <summary>The order of the rows as set in VideosRowOrder: the known keys listed (each once), then the missing ones in their default order.</summary>
+    public static IReadOnlyList<string> RowOrder(PluginConfiguration config)
     {
-        for (var i = 0; i < Types.Count; i++)
+        var order = new List<string>();
+        foreach (var part in (config.VideosRowOrder ?? string.Empty).Split(','))
         {
-            if (TypeKey(Types[i]) == key)
+            var key = part.Trim().ToLowerInvariant();
+            if (DefaultOrder.Contains(key) && !order.Contains(key))
             {
-                return i + 1;
+                order.Add(key);
             }
         }
 
-        return key.StartsWith("slot", StringComparison.Ordinal) && int.TryParse(key.AsSpan(4), out var n) ? 9 + n : 99;
+        order.AddRange(DefaultOrder.Where(key => !order.Contains(key)));
+        return order;
+    }
+
+    /// <summary>The position of a row key in the order of the table, counted from 1; 99 for an unknown key.</summary>
+    public static int TableIndex(PluginConfiguration config, string key)
+    {
+        var at = RowOrder(config).ToList().IndexOf(key);
+        return at < 0 ? 99 : at + 1;
     }
 
     /// <summary>True when the row of a special feature is switched on (a type's On tick; an own slot is on by being read at all).</summary>
@@ -236,7 +249,7 @@ public static class VideoRows
         {
             if (config.VideosKeepSlotsTogether)
             {
-                foreach (var row in block.GroupBy(RowKey).OrderBy(g => TableIndex(g.Key)))
+                foreach (var row in block.GroupBy(RowKey).OrderBy(g => TableIndex(config, g.Key)))
                 {
                     result.AddRange(SortRow(row, config.VideosSort, seed is int s1 ? s1 ^ StableHash("n" + block.Key + row.Key) : null));
                 }

@@ -35,7 +35,8 @@
     "Short",
     "Featurette",
     "BehindTheScenes",
-    "HeaderScenes"
+    "HeaderScenes",
+    "HeaderVideos"
   ],
   "ab": {
     "LabelVersion": "Version",
@@ -204,7 +205,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "af": {
     "LabelVersion": "Weergawe",
@@ -374,7 +376,8 @@
     "VideoInterviews": "Onderhoude",
     "VideoSamples": "Monsters",
     "VideoShorts": "Kortfilms",
-    "VideoFeaturettes": "Kortprogramme"
+    "VideoFeaturettes": "Kortprogramme",
+    "HeaderVideos": "Videos"
   },
   "ar": {
     "LabelVersion": "الإصدار",
@@ -550,7 +553,8 @@
     "VideoInterviews": "مقابلات",
     "VideoSamples": "عينات",
     "VideoShorts": "أفلام قصيرة",
-    "VideoFeaturettes": "مقاطع إضافية"
+    "VideoFeaturettes": "مقاطع إضافية",
+    "HeaderVideos": "الفيديوهات"
   },
   "ar-sa": {
     "LabelVersion": "الإصدار",
@@ -726,7 +730,8 @@
     "VideoInterviews": "مقابلات",
     "VideoSamples": "عينات",
     "VideoShorts": "أفلام قصيرة",
-    "VideoFeaturettes": "مقاطع إضافية"
+    "VideoFeaturettes": "مقاطع إضافية",
+    "HeaderVideos": "الفيديوهات"
   },
   "as": {
     "LabelVersion": "সংস্কৰণ",
@@ -893,7 +898,8 @@
     "VideoInterviews": "সাক্ষাৎকাৰ",
     "VideoSamples": "নমুনা",
     "VideoShorts": "চুটি ফিল্ম",
-    "VideoFeaturettes": "ফিচাৰেট"
+    "VideoFeaturettes": "ফিচাৰেট",
+    "HeaderVideos": "Videos"
   },
   "az": {
     "LabelVersion": "Versiya",
@@ -1060,7 +1066,8 @@
     "VideoInterviews": "Müsahibələr",
     "VideoSamples": "Nümunələr",
     "VideoShorts": "Qısametrajlılar",
-    "VideoFeaturettes": "Featurette-lər"
+    "VideoFeaturettes": "Featurette-lər",
+    "HeaderVideos": "Videos"
   },
   "be-by": {
     "LabelVersion": "Версія",
@@ -1231,7 +1238,8 @@
     "VideoInterviews": "Інтэрв’ю",
     "VideoSamples": "Узоры",
     "VideoShorts": "Кароткаметражкі",
-    "VideoFeaturettes": "Фічарэты"
+    "VideoFeaturettes": "Фічарэты",
+    "HeaderVideos": "Відэа"
   },
   "bg-bg": {
     "LabelVersion": "Версия",
@@ -1405,7 +1413,8 @@
     "VideoInterviews": "Интервюта",
     "VideoSamples": "Мостри",
     "VideoShorts": "Късометражни филми",
-    "VideoFeaturettes": "Допълнителни клипове"
+    "VideoFeaturettes": "Допълнителни клипове",
+    "HeaderVideos": "Видеоклипове"
   },
   "bn": {
     "LabelVersion": "সংস্করণ",
@@ -1577,7 +1586,8 @@
     "VideoInterviews": "সাক্ষাৎকার",
     "VideoSamples": "নমুনা",
     "VideoShorts": "ছোট চলচ্চিত্র",
-    "VideoFeaturettes": "ফিচারেট"
+    "VideoFeaturettes": "ফিচারেট",
+    "HeaderVideos": "Videos"
   },
   "bn-bd": {
     "LabelVersion": "সংস্করণ",
@@ -1749,7 +1759,8 @@
     "VideoInterviews": "সাক্ষাৎকার",
     "VideoSamples": "নমুনা",
     "VideoShorts": "ছোট চলচ্চিত্র",
-    "VideoFeaturettes": "ফিচারেট"
+    "VideoFeaturettes": "ফিচারেট",
+    "HeaderVideos": "Videos"
   },
   "br": {
     "LabelVersion": "Stumm",
@@ -1919,7 +1930,8 @@
     "VideoInterviews": "Atersadennoù",
     "VideoSamples": "Skouerioù",
     "VideoShorts": "Filmoù berr",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videoioù"
   },
   "bs": {
     "LabelVersion": "Verzija",
@@ -2099,7 +2111,8 @@
     "VideoInterviews": "Intervjui",
     "VideoSamples": "Uzorci",
     "VideoShorts": "Kratki filmovi",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videozapisi"
   },
   "ca": {
     "LabelVersion": "Versió",
@@ -2279,7 +2292,8 @@
     "VideoInterviews": "Entrevistes",
     "VideoSamples": "Mostres",
     "VideoShorts": "Curtmetratges",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "ch": {
     "LabelVersion": "Version",
@@ -2448,7 +2462,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "ckb": {
     "LabelVersion": "وەشان",
@@ -2618,7 +2633,8 @@
     "VideoInterviews": "چاوپێکەوتنەکان",
     "VideoSamples": "نموونەکان",
     "VideoShorts": "فیلمە کورتەکان",
-    "VideoFeaturettes": "فیچەرێتەکان"
+    "VideoFeaturettes": "فیچەرێتەکان",
+    "HeaderVideos": "Videos"
   },
   "cs": {
     "LabelVersion": "Verze",
@@ -2795,7 +2811,8 @@
     "VideoInterviews": "Rozhovory",
     "VideoSamples": "Ukázky",
     "VideoShorts": "Krátké filmy",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videa"
   },
   "cy": {
     "LabelVersion": "Fersiwn",
@@ -2962,7 +2979,8 @@
     "VideoInterviews": "Cyfweliadau",
     "VideoSamples": "Samplau",
     "VideoShorts": "Ffilmiau byr",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Fideos"
   },
   "da": {
     "LabelVersion": "Version",
@@ -3141,7 +3159,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Prøver",
     "VideoShorts": "Kortfilm",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videoer"
   },
   "de": {
     "LabelVersion": "Version",
@@ -3324,7 +3343,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Kurzfilme",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "dv": {
     "LabelVersion": "Version",
@@ -3493,7 +3513,8 @@
     "VideoInterviews": "އިންޓަރވިއުތައް",
     "VideoSamples": "ނަމޫނާތައް",
     "VideoShorts": "ކުރު ފިލްމުތައް",
-    "VideoFeaturettes": "ފީޗަރެޓްތައް"
+    "VideoFeaturettes": "ފީޗަރެޓްތައް",
+    "HeaderVideos": "Videos"
   },
   "el": {
     "LabelVersion": "Έκδοση",
@@ -3675,7 +3696,8 @@
     "VideoInterviews": "Συνεντεύξεις",
     "VideoSamples": "Δείγματα",
     "VideoShorts": "Μικρού μήκους",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Βίντεο"
   },
   "en-gb": {
     "LabelVersion": "Version",
@@ -3845,7 +3867,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "en-us": {
     "LabelVersion": "Version",
@@ -4015,7 +4038,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "eo": {
     "LabelVersion": "Versio",
@@ -4187,7 +4211,8 @@
     "VideoInterviews": "Intervjuoj",
     "VideoSamples": "Specimenoj",
     "VideoShorts": "Mallongaj filmoj",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videoj"
   },
   "es": {
     "LabelVersion": "Versión",
@@ -4369,7 +4394,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Muestras",
     "VideoShorts": "Cortos",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "es-419": {
     "LabelVersion": "Versión",
@@ -4550,7 +4576,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Muestras",
     "VideoShorts": "Cortos",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "es-ar": {
     "LabelVersion": "Versión",
@@ -4731,7 +4758,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Muestras",
     "VideoShorts": "Cortos",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "es-do": {
     "LabelVersion": "Versión",
@@ -4911,7 +4939,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Muestras",
     "VideoShorts": "Cortos",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "es-mx": {
     "LabelVersion": "Versión",
@@ -5092,7 +5121,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Muestras",
     "VideoShorts": "Cortos",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "et": {
     "LabelVersion": "Versioon",
@@ -5263,7 +5293,8 @@
     "VideoInterviews": "Intervjuud",
     "VideoSamples": "Näidised",
     "VideoShorts": "Lühifilmid",
-    "VideoFeaturettes": "Featurette’id"
+    "VideoFeaturettes": "Featurette’id",
+    "HeaderVideos": "Videod"
   },
   "eu": {
     "LabelVersion": "Bertsioa",
@@ -5431,7 +5462,8 @@
     "VideoInterviews": "Elkarrizketak",
     "VideoSamples": "Laginak",
     "VideoShorts": "Film laburrak",
-    "VideoFeaturettes": "Featurette-ak"
+    "VideoFeaturettes": "Featurette-ak",
+    "HeaderVideos": "Bideoak"
   },
   "fa": {
     "LabelVersion": "نسخه",
@@ -5604,7 +5636,8 @@
     "VideoInterviews": "مصاحبه‌ها",
     "VideoSamples": "نمونه‌ها",
     "VideoShorts": "فیلم‌های کوتاه",
-    "VideoFeaturettes": "فیچرت‌ها"
+    "VideoFeaturettes": "فیچرت‌ها",
+    "HeaderVideos": "ویدیوها"
   },
   "fi": {
     "LabelVersion": "Versio",
@@ -5783,7 +5816,8 @@
     "VideoInterviews": "Haastattelut",
     "VideoSamples": "Näytteet",
     "VideoShorts": "Lyhytelokuvat",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videot"
   },
   "fil": {
     "LabelVersion": "Bersyon",
@@ -5951,7 +5985,8 @@
     "VideoInterviews": "Mga panayam",
     "VideoSamples": "Mga sample",
     "VideoShorts": "Maiikling pelikula",
-    "VideoFeaturettes": "Mga featurette"
+    "VideoFeaturettes": "Mga featurette",
+    "HeaderVideos": "Mga Video"
   },
   "fo": {
     "LabelVersion": "Útgáva",
@@ -6118,7 +6153,8 @@
     "VideoInterviews": "Samrøður",
     "VideoSamples": "Sýnisløg",
     "VideoShorts": "Stuttfilmar",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Kykmyndir"
   },
   "fr": {
     "LabelVersion": "Version",
@@ -6300,7 +6336,8 @@
     "VideoInterviews": "Entretiens",
     "VideoSamples": "Échantillons",
     "VideoShorts": "Courts métrages",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vidéos"
   },
   "fr-ca": {
     "LabelVersion": "Version",
@@ -6482,7 +6519,8 @@
     "VideoInterviews": "Entretiens",
     "VideoSamples": "Échantillons",
     "VideoShorts": "Courts métrages",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vidéos"
   },
   "ga": {
     "LabelVersion": "Leagan",
@@ -6649,7 +6687,8 @@
     "VideoInterviews": "Agallaimh",
     "VideoSamples": "Samplaí",
     "VideoShorts": "Gearrfhíseáin",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Físeáin"
   },
   "gl": {
     "LabelVersion": "Versión",
@@ -6830,7 +6869,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Mostras",
     "VideoShorts": "Curtametraxes",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "gsw": {
     "LabelVersion": "Version",
@@ -6998,7 +7038,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Muschter",
     "VideoShorts": "Churzfilm",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "gu": {
     "LabelVersion": "આવૃત્તિ",
@@ -7169,7 +7210,8 @@
     "VideoInterviews": "મુલાકાતો",
     "VideoSamples": "નમૂનાઓ",
     "VideoShorts": "ટૂંકી ફિલ્મો",
-    "VideoFeaturettes": "ફીચરેટ"
+    "VideoFeaturettes": "ફીચરેટ",
+    "HeaderVideos": "Videos"
   },
   "he": {
     "LabelVersion": "גרסה",
@@ -7337,7 +7379,8 @@
     "VideoInterviews": "ראיונות",
     "VideoSamples": "דוגמאות",
     "VideoShorts": "סרטים קצרים",
-    "VideoFeaturettes": "פיצ׳רטים"
+    "VideoFeaturettes": "פיצ׳רטים",
+    "HeaderVideos": "וידאו"
   },
   "he-il": {
     "LabelVersion": "גרסה",
@@ -7505,7 +7548,8 @@
     "VideoInterviews": "ראיונות",
     "VideoSamples": "דוגמאות",
     "VideoShorts": "סרטים קצרים",
-    "VideoFeaturettes": "פיצ׳רטים"
+    "VideoFeaturettes": "פיצ׳רטים",
+    "HeaderVideos": "וידאו"
   },
   "hi-in": {
     "LabelVersion": "संस्करण",
@@ -7679,7 +7723,8 @@
     "VideoInterviews": "साक्षात्कार",
     "VideoSamples": "नमूने",
     "VideoShorts": "लघु फ़िल्में",
-    "VideoFeaturettes": "फ़ीचरेट"
+    "VideoFeaturettes": "फ़ीचरेट",
+    "HeaderVideos": "Videos"
   },
   "hr": {
     "LabelVersion": "Verzija",
@@ -7851,7 +7896,8 @@
     "VideoInterviews": "Intervjui",
     "VideoSamples": "Uzorci",
     "VideoShorts": "Kratki filmovi",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videi"
   },
   "ht": {
     "LabelVersion": "Vèsyon",
@@ -8018,7 +8064,8 @@
     "VideoInterviews": "Entèvyou",
     "VideoSamples": "Echantiyon",
     "VideoShorts": "Kout fim",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "hu": {
     "LabelVersion": "Verzió",
@@ -8193,7 +8240,8 @@
     "VideoInterviews": "Interjúk",
     "VideoSamples": "Minták",
     "VideoShorts": "Rövidfilmek",
-    "VideoFeaturettes": "Featurette-ek"
+    "VideoFeaturettes": "Featurette-ek",
+    "HeaderVideos": "Videók"
   },
   "hy": {
     "LabelVersion": "Վերսիա",
@@ -8363,7 +8411,8 @@
     "VideoInterviews": "Հարցազրույցներ",
     "VideoSamples": "Նմուշներ",
     "VideoShorts": "Կարճամետրաժներ",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "id": {
     "LabelVersion": "Versi",
@@ -8535,7 +8584,8 @@
     "VideoInterviews": "Wawancara",
     "VideoSamples": "Sampel",
     "VideoShorts": "Film pendek",
-    "VideoFeaturettes": "Featurette"
+    "VideoFeaturettes": "Featurette",
+    "HeaderVideos": "Video"
   },
   "is-is": {
     "LabelVersion": "Útgáfa",
@@ -8703,7 +8753,8 @@
     "VideoInterviews": "Viðtöl",
     "VideoSamples": "Sýnishorn",
     "VideoShorts": "Stuttmyndir",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Myndbönd"
   },
   "it": {
     "LabelVersion": "Versione",
@@ -8885,7 +8936,8 @@
     "VideoInterviews": "Interviste",
     "VideoSamples": "Campioni",
     "VideoShorts": "Cortometraggi",
-    "VideoFeaturettes": "Featurette"
+    "VideoFeaturettes": "Featurette",
+    "HeaderVideos": "Video"
   },
   "ja": {
     "LabelVersion": "バージョン",
@@ -9055,7 +9107,8 @@
     "VideoInterviews": "インタビュー",
     "VideoSamples": "サンプル",
     "VideoShorts": "ショート",
-    "VideoFeaturettes": "フィーチャレット"
+    "VideoFeaturettes": "フィーチャレット",
+    "HeaderVideos": "ビデオ"
   },
   "jbo": {
     "LabelVersion": "Version",
@@ -9224,7 +9277,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "ka": {
     "LabelVersion": "ვერსია",
@@ -9397,7 +9451,8 @@
     "VideoInterviews": "ინტერვიუები",
     "VideoSamples": "ნიმუშები",
     "VideoShorts": "მოკლემეტრაჟიანი ფილმები",
-    "VideoFeaturettes": "ფიჩერეტები"
+    "VideoFeaturettes": "ფიჩერეტები",
+    "HeaderVideos": "ვიდეოები"
   },
   "kab": {
     "LabelVersion": "Lqem",
@@ -9563,7 +9618,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "kk": {
     "LabelVersion": "Nūsqasy",
@@ -9734,7 +9790,8 @@
     "VideoInterviews": "Сұхбаттар",
     "VideoSamples": "Үлгілер",
     "VideoShorts": "Қысқа фильмдер",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Beineler"
   },
   "kn": {
     "LabelVersion": "ಆವೃತ್ತಿ",
@@ -9905,7 +9962,8 @@
     "VideoInterviews": "ಸಂದರ್ಶನಗಳು",
     "VideoSamples": "ಮಾದರಿಗಳು",
     "VideoShorts": "ಕಿರುಚಿತ್ರಗಳು",
-    "VideoFeaturettes": "ಫೀಚರೆಟ್‌ಗಳು"
+    "VideoFeaturettes": "ಫೀಚರೆಟ್‌ಗಳು",
+    "HeaderVideos": "Videos"
   },
   "ko": {
     "LabelVersion": "버전",
@@ -10072,7 +10130,8 @@
     "VideoInterviews": "인터뷰",
     "VideoSamples": "샘플",
     "VideoShorts": "쇼츠",
-    "VideoFeaturettes": "특집 영상"
+    "VideoFeaturettes": "특집 영상",
+    "HeaderVideos": "비디오"
   },
   "kw": {
     "LabelVersion": "Versyon",
@@ -10239,7 +10298,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "ky": {
     "LabelVersion": "Версия",
@@ -10409,7 +10469,8 @@
     "VideoInterviews": "Маектер",
     "VideoSamples": "Үлгүлөр",
     "VideoShorts": "Кыска метраждуу тасмалар",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "lb": {
     "LabelVersion": "Versioun",
@@ -10581,7 +10642,8 @@
     "VideoInterviews": "Interviewen",
     "VideoSamples": "Muster",
     "VideoShorts": "Kuerzfilmer",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videoen"
   },
   "lt-lt": {
     "LabelVersion": "Versija",
@@ -10753,7 +10815,8 @@
     "VideoInterviews": "Interviu",
     "VideoSamples": "Pavyzdžiai",
     "VideoShorts": "Trumpametražiai",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vaizdo įrašai"
   },
   "lv": {
     "LabelVersion": "Versija",
@@ -10924,7 +10987,8 @@
     "VideoInterviews": "Intervijas",
     "VideoSamples": "Paraugi",
     "VideoShorts": "Īsfilmas",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Video"
   },
   "mg": {
     "LabelVersion": "Dika",
@@ -11090,7 +11154,8 @@
     "VideoInterviews": "Resadresaka",
     "VideoSamples": "Santionany",
     "VideoShorts": "Sarimihetsika fohy",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "mi": {
     "LabelVersion": "Putanga",
@@ -11257,7 +11322,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "mk": {
     "LabelVersion": "Верзија",
@@ -11428,7 +11494,8 @@
     "VideoInterviews": "Интервјуа",
     "VideoSamples": "Примероци",
     "VideoShorts": "Кратки филмови",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "ml": {
     "LabelVersion": "പതിപ്പ്",
@@ -11600,7 +11667,8 @@
     "VideoInterviews": "അഭിമുഖങ്ങൾ",
     "VideoSamples": "സാമ്പിളുകൾ",
     "VideoShorts": "ഹ്രസ്വചിത്രങ്ങൾ",
-    "VideoFeaturettes": "ഫീച്ചറെറ്റുകൾ"
+    "VideoFeaturettes": "ഫീച്ചറെറ്റുകൾ",
+    "HeaderVideos": "വീഡിയോകൾ"
   },
   "mn": {
     "LabelVersion": "Хувилбар",
@@ -11772,7 +11840,8 @@
     "VideoInterviews": "Ярилцлагууд",
     "VideoSamples": "Дээжүүд",
     "VideoShorts": "Богино кино",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Видео"
   },
   "mr": {
     "LabelVersion": "आवृत्ती",
@@ -11943,7 +12012,8 @@
     "VideoInterviews": "मुलाखती",
     "VideoSamples": "नमुने",
     "VideoShorts": "लघुपट",
-    "VideoFeaturettes": "फीचरेट"
+    "VideoFeaturettes": "फीचरेट",
+    "HeaderVideos": "व्हिडियो"
   },
   "ms": {
     "LabelVersion": "Versi",
@@ -12111,7 +12181,8 @@
     "VideoInterviews": "Temu bual",
     "VideoSamples": "Sampel",
     "VideoShorts": "Filem pendek",
-    "VideoFeaturettes": "Featurette"
+    "VideoFeaturettes": "Featurette",
+    "HeaderVideos": "Videos"
   },
   "mt": {
     "LabelVersion": "Verżjoni",
@@ -12277,7 +12348,8 @@
     "VideoInterviews": "Intervisti",
     "VideoSamples": "Kampjuni",
     "VideoShorts": "Films qosra",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "my": {
     "LabelVersion": "ဗားရှင်း",
@@ -12444,7 +12516,8 @@
     "VideoInterviews": "အင်တာဗျူးများ",
     "VideoSamples": "နမူနာများ",
     "VideoShorts": "ရုပ်ရှင်တိုများ",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "nb": {
     "LabelVersion": "Versjon",
@@ -12623,7 +12696,8 @@
     "VideoInterviews": "Intervjuer",
     "VideoSamples": "Prøver",
     "VideoShorts": "Kortfilmer",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Filmer"
   },
   "nds": {
     "LabelVersion": "Version",
@@ -12790,7 +12864,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Proven",
     "VideoShorts": "Kortfilms",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "ne": {
     "LabelVersion": "संस्करण",
@@ -12960,7 +13035,8 @@
     "VideoInterviews": "अन्तर्वार्ताहरू",
     "VideoSamples": "नमूनाहरू",
     "VideoShorts": "छोटा फिल्महरू",
-    "VideoFeaturettes": "फिचरेटहरू"
+    "VideoFeaturettes": "फिचरेटहरू",
+    "HeaderVideos": "Videos"
   },
   "nl": {
     "LabelVersion": "Versie",
@@ -13142,7 +13218,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Voorbeelden",
     "VideoShorts": "Korte films",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Video's"
   },
   "nn": {
     "LabelVersion": "Versjon",
@@ -13321,7 +13398,8 @@
     "VideoInterviews": "Intervjuer",
     "VideoSamples": "Prøver",
     "VideoShorts": "Kortfilmer",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videoar"
   },
   "oc": {
     "LabelVersion": "Version",
@@ -13488,7 +13566,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Escandalhs",
     "VideoShorts": "Cortmetratges",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "pa": {
     "LabelVersion": "ਵਰਜਨ",
@@ -13659,7 +13738,8 @@
     "VideoInterviews": "ਇੰਟਰਵਿਊ",
     "VideoSamples": "ਨਮੂਨੇ",
     "VideoShorts": "ਛੋਟੀਆਂ ਫ਼ਿਲਮਾਂ",
-    "VideoFeaturettes": "ਫੀਚਰੈਟ"
+    "VideoFeaturettes": "ਫੀਚਰੈਟ",
+    "HeaderVideos": "Videos"
   },
   "pl": {
     "LabelVersion": "Wersja",
@@ -13839,7 +13919,8 @@
     "VideoInterviews": "Wywiady",
     "VideoSamples": "Próbki",
     "VideoShorts": "Filmy krótkie",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Wideo"
   },
   "pr": {
     "LabelVersion": "Version",
@@ -14007,7 +14088,8 @@
     "VideoInterviews": "Interviews",
     "VideoSamples": "Samples",
     "VideoShorts": "Shorts",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "pt": {
     "LabelVersion": "Versão",
@@ -14188,7 +14270,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Amostras",
     "VideoShorts": "Curtas",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "pt-br": {
     "LabelVersion": "Versão",
@@ -14369,7 +14452,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Amostras",
     "VideoShorts": "Curtas",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "pt-pt": {
     "LabelVersion": "Versão",
@@ -14551,7 +14635,8 @@
     "VideoInterviews": "Entrevistas",
     "VideoSamples": "Amostras",
     "VideoShorts": "Curtas",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Vídeos"
   },
   "ro": {
     "LabelVersion": "Versiune",
@@ -14731,7 +14816,8 @@
     "VideoInterviews": "Interviuri",
     "VideoSamples": "Mostre",
     "VideoShorts": "Scurtmetraje",
-    "VideoFeaturettes": "Featurette"
+    "VideoFeaturettes": "Featurette",
+    "HeaderVideos": "Videoclipuri"
   },
   "ru": {
     "LabelVersion": "Версия",
@@ -14911,7 +14997,8 @@
     "VideoInterviews": "Интервью",
     "VideoSamples": "Образцы",
     "VideoShorts": "Короткометражки",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Видео"
   },
   "si": {
     "LabelVersion": "අනුවාදය",
@@ -15078,7 +15165,8 @@
     "VideoInterviews": "සම්මුඛ සාකච්ඡා",
     "VideoSamples": "සාම්පල",
     "VideoShorts": "කෙටි චිත්‍රපට",
-    "VideoFeaturettes": "ෆීචරෙට්"
+    "VideoFeaturettes": "ෆීචරෙට්",
+    "HeaderVideos": "Videos"
   },
   "sk": {
     "LabelVersion": "Verzia",
@@ -15258,7 +15346,8 @@
     "VideoInterviews": "Rozhovory",
     "VideoSamples": "Ukážky",
     "VideoShorts": "Krátke filmy",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videá"
   },
   "sl-si": {
     "LabelVersion": "Različica",
@@ -15429,7 +15518,8 @@
     "VideoInterviews": "Intervjuji",
     "VideoSamples": "Vzorci",
     "VideoShorts": "Kratki filmi",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videi"
   },
   "so": {
     "LabelVersion": "Nooca",
@@ -15596,7 +15686,8 @@
     "VideoInterviews": "Wareysiyo",
     "VideoSamples": "Tusaalooyin",
     "VideoShorts": "Filimo gaaban",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "sq": {
     "LabelVersion": "Versioni",
@@ -15762,7 +15853,8 @@
     "VideoInterviews": "Intervista",
     "VideoSamples": "Mostra",
     "VideoShorts": "Filma të shkurtër",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videot"
   },
   "sr": {
     "LabelVersion": "Верзија",
@@ -15943,7 +16035,8 @@
     "VideoInterviews": "Интервјуи",
     "VideoSamples": "Узорци",
     "VideoShorts": "Кратки филмови",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Видео датотеке"
   },
   "sv": {
     "LabelVersion": "Version",
@@ -16123,7 +16216,8 @@
     "VideoInterviews": "Intervjuer",
     "VideoSamples": "Prover",
     "VideoShorts": "Kortfilmer",
-    "VideoFeaturettes": "Featuretter"
+    "VideoFeaturettes": "Featuretter",
+    "HeaderVideos": "Videor"
   },
   "sw": {
     "LabelVersion": "Toleo",
@@ -16294,7 +16388,8 @@
     "VideoInterviews": "Mahojiano",
     "VideoSamples": "Sampuli",
     "VideoShorts": "Filamu fupi",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "ta": {
     "LabelVersion": "பதிப்பு",
@@ -16465,7 +16560,8 @@
     "VideoInterviews": "பேட்டிகள்",
     "VideoSamples": "மாதிரிகள்",
     "VideoShorts": "குறும்படங்கள்",
-    "VideoFeaturettes": "ஃபீச்சரெட்டுகள்"
+    "VideoFeaturettes": "ஃபீச்சரெட்டுகள்",
+    "HeaderVideos": "காணொளிகள்"
   },
   "te": {
     "LabelVersion": "వెర్షన్",
@@ -16638,7 +16734,8 @@
     "VideoInterviews": "ఇంటర్వ్యూలు",
     "VideoSamples": "నమూనాలు",
     "VideoShorts": "లఘు చిత్రాలు",
-    "VideoFeaturettes": "ఫీచరెట్‌లు"
+    "VideoFeaturettes": "ఫీచరెట్‌లు",
+    "HeaderVideos": "వీడియోలు"
   },
   "th": {
     "LabelVersion": "เวอร์ชัน",
@@ -16809,7 +16906,8 @@
     "VideoInterviews": "บทสัมภาษณ์",
     "VideoSamples": "ตัวอย่าง",
     "VideoShorts": "หนังสั้น",
-    "VideoFeaturettes": "ฟีเจอร์เรต"
+    "VideoFeaturettes": "ฟีเจอร์เรต",
+    "HeaderVideos": "Videos"
   },
   "tr": {
     "LabelVersion": "Sürüm",
@@ -16989,7 +17087,8 @@
     "VideoInterviews": "Röportajlar",
     "VideoSamples": "Örnekler",
     "VideoShorts": "Kısa Filmler",
-    "VideoFeaturettes": "Featurette’ler"
+    "VideoFeaturettes": "Featurette’ler",
+    "HeaderVideos": "Videolar"
   },
   "ug": {
     "LabelVersion": "نەشرى",
@@ -17156,7 +17255,8 @@
     "VideoInterviews": "زىيارەتلەر",
     "VideoSamples": "ئەۋرىشكىلەر",
     "VideoShorts": "قىسقا فىلىملەر",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "uk": {
     "LabelVersion": "Версія",
@@ -17335,7 +17435,8 @@
     "VideoInterviews": "Інтерв’ю",
     "VideoSamples": "Зразки",
     "VideoShorts": "Короткометражки",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Фільм"
   },
   "ur-pk": {
     "LabelVersion": "ورژن",
@@ -17506,7 +17607,8 @@
     "VideoInterviews": "انٹرویوز",
     "VideoSamples": "نمونے",
     "VideoShorts": "مختصر فلمیں",
-    "VideoFeaturettes": "فیچریٹس"
+    "VideoFeaturettes": "فیچریٹس",
+    "HeaderVideos": "ویڈیوز"
   },
   "uz": {
     "LabelVersion": "Versiya",
@@ -17676,7 +17778,8 @@
     "VideoInterviews": "Intervyular",
     "VideoSamples": "Namunalar",
     "VideoShorts": "Qisqa filmlar",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videolar"
   },
   "vi": {
     "LabelVersion": "Phiên bản",
@@ -17847,7 +17950,8 @@
     "VideoInterviews": "Phỏng vấn",
     "VideoSamples": "Mẫu",
     "VideoShorts": "Phim ngắn",
-    "VideoFeaturettes": "Featurette"
+    "VideoFeaturettes": "Featurette",
+    "HeaderVideos": "Các đoạn video"
   },
   "zh-cn": {
     "LabelVersion": "版本",
@@ -18015,7 +18119,8 @@
     "VideoInterviews": "采访",
     "VideoSamples": "样片",
     "VideoShorts": "短片",
-    "VideoFeaturettes": "花絮"
+    "VideoFeaturettes": "花絮",
+    "HeaderVideos": "视频"
   },
   "zh-hk": {
     "LabelVersion": "版本",
@@ -18186,7 +18291,8 @@
     "VideoInterviews": "訪談",
     "VideoSamples": "樣片",
     "VideoShorts": "短片",
-    "VideoFeaturettes": "花絮"
+    "VideoFeaturettes": "花絮",
+    "HeaderVideos": "影片"
   },
   "zh-tw": {
     "LabelVersion": "版本",
@@ -18357,7 +18463,8 @@
     "VideoInterviews": "訪談",
     "VideoSamples": "樣片",
     "VideoShorts": "短片",
-    "VideoFeaturettes": "花絮"
+    "VideoFeaturettes": "花絮",
+    "HeaderVideos": "影片"
   },
   "zu": {
     "LabelVersion": "Inguqulo",
@@ -18524,7 +18631,8 @@
     "VideoInterviews": "Izingxoxo",
     "VideoSamples": "Amasampula",
     "VideoShorts": "Amafilimu amafushane",
-    "VideoFeaturettes": "Featurettes"
+    "VideoFeaturettes": "Featurettes",
+    "HeaderVideos": "Videos"
   },
   "_replacedByChoice": {
     "af": [

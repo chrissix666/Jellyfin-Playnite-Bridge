@@ -206,7 +206,7 @@ public class GamesController : ControllerBase
                 config.WallpapersCropLimitPercent,
                 WallpapersTitle = TitleKey(config.WallpapersTitle, "WallpapersAndArtwork", "Wallpapers", "Artwork", "Gallery"),
                 WallpapersLabel = Clamp40(config.WallpapersLabel),
-                SpecialFeaturesTitle = TitleKey(config.SpecialFeaturesTitle, "SpecialFeatures", "Extras", "BonusMaterial"),
+                SpecialFeaturesTitle = TitleKey(config.SpecialFeaturesTitle, "SpecialFeatures", "Extras", "BonusMaterial", "HeaderVideos"),
                 ScreenshotsTitle = TitleKey(config.ScreenshotsTitle, "Screenshots", "Gameplay", "Gallery"),
                 DocumentsTitle = TitleKey(config.DocumentsTitle, "Documents", "Library", "ManualsAndBooks"),
                 SoundtrackTitle = TitleKey(config.SoundtrackTitle, "Soundtrack", "Music", "OriginalSoundtrack"),
@@ -225,7 +225,10 @@ public class GamesController : ControllerBase
                     FadeOut = Math.Clamp(config.ThemeFadeOutSeconds, 0, 60),
                     Loop = config.ThemeLoopMusic,
                     DelayedStartEvery = config.ThemeDelayedStartEverySong,
-                    FadeEvery = config.ThemeFadeEverySong
+                    FadeEvery = config.ThemeFadeEverySong,
+                    StartRandom = config.ThemeStartPosition == ThemeStartPosition.Random,
+                    StartMin = Math.Clamp(Math.Min(config.ThemeStartMinPercent, config.ThemeStartMaxPercent), 0, 100),
+                    StartMax = Math.Clamp(Math.Max(config.ThemeStartMinPercent, config.ThemeStartMaxPercent), 0, 100)
                 } : null,
                 ThemeVideos = config.EnableThemeVideos ? new
                 {
@@ -235,7 +238,10 @@ public class GamesController : ControllerBase
                     DelayedStart = Math.Clamp(config.ThemeVideoDelayedStartSeconds, 0, 600),
                     Loop = config.ThemeLoopVideo,
                     DelayedStartEvery = config.ThemeDelayedStartEveryVideo,
-                    KeepSourcesTogether = config.ThemeVideoKeepSourcesTogether
+                    KeepSourcesTogether = config.ThemeVideoKeepSourcesTogether,
+                    StartRandom = config.ThemeVideoStartPosition == ThemeStartPosition.Random,
+                    StartMin = Math.Clamp(Math.Min(config.ThemeVideoStartMinPercent, config.ThemeVideoStartMaxPercent), 0, 100),
+                    StartMax = Math.Clamp(Math.Max(config.ThemeVideoStartMinPercent, config.ThemeVideoStartMaxPercent), 0, 100)
                 } : null,
                 VersionArtwork = VersionArtwork(config),
                 ArtworkSource = artworkPlusDraws ? "ArtworkPlus" : "PlayniteBridge",
