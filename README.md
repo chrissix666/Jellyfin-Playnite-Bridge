@@ -538,7 +538,7 @@ Five real examples. Only the id is needed. The name is a fallback for when you h
 </game>
 ```
 
-**One movie, no collection, with cast:** Star Trek: Hidden Evil. This is done on purpose. The game could also be connected to the Star Trek collection, the Star Trek: The Next Generation collection or the Star Trek: The Next Generation series. It is only an example of how you can have it. In this case the game belongs directly to one movie, so the sets and series are left out.
+**One movie, no collection, with cast:** Star Trek: Hidden Evil. This is done on purpose. The game could also be connected to the Star Trek collection, the Star Trek: The Next Generation collection or the Star Trek: The Next Generation TV show. It is only an example of how you can have it. In this case the game belongs directly to one movie, so the sets and series are left out.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -578,7 +578,7 @@ Five real examples. Only the id is needed. The name is a fallback for when you h
         <setname></setname>
         <order>0</order>
     </media>
-    <!-- RoboCop -->
+    <!-- RoboCop TV show -->
     <media>
         <tvdb>75981</tvdb>
         <showname></showname>
