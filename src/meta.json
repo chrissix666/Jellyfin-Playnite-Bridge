@@ -1,0 +1,16 @@
+{
+  "category": "Experimental",
+  "changelog": "1.0.0.0: the games from Playnite appear as virtual entries in a Jellyfin library chosen by name, without entries in Jellyfin's database; games from every store and games added by hand, with Jellyfin's own tabs, sort, filters, paging and image cache; the same game from several stores grouped into one tile with store icons or a number as version marker; a detail page with Playnite's data, versions and links; start and install buttons through Playnite or the store; an admin page with all settings.",
+  "description": "Shows the games from Playnite, from every store and added by hand, in a Jellyfin library, without adding them to Jellyfin's database.",
+  "guid": "59d303d7-b936-4c4b-81a7-e69b2b27d6b6",
+  "name": "Playnite Bridge",
+  "overview": "Reads Playnite's library read-only and presents its games from every store like movies in a library of your choice: poster tiles, detail page, start button.",
+  "owner": "chrissix666",
+  "targetAbi": "10.10.7.0",
+  "timestamp": "2026-10-23T00:00:00.0000000Z",
+  "version": "1.0.0.0",
+  "status": "Active",
+  "autoUpdate": false,
+  "assemblies": [],
+  "imagePath": "logo.png"
+}

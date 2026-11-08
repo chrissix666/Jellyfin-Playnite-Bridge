@@ -1,0 +1,87 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- One source, two builds: net8.0 for Jellyfin 10.10.7, net10.0 for Jellyfin 12.x. Build with -f net8.0 or -f net10.0. -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Jellyfin.Plugin.PlayniteBridge</RootNamespace>
+    <AssemblyName>Jellyfin.Plugin.PlayniteBridge</AssemblyName>
+    <!-- LiteDB is not part of Jellyfin, so its DLL is copied next to the plugin DLL. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!-- Plugin versions: 1.x for Jellyfin 10.10 (net8.0), 2.x for Jellyfin 12.x (net10.0). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <Version>1.0.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Version>2.0.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.6" ExcludeAssets="runtime" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.6" ExcludeAssets="runtime" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <!-- Jellyfin 12.x: the lowest supported packages (12.0.0); 12.1 only added public members. -->
+    <PackageReference Include="Jellyfin.Controller" Version="12.0.0" ExcludeAssets="runtime" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageReference Include="Jellyfin.Model" Version="12.0.0" ExcludeAssets="runtime" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <!-- Playnite 10.x writes games.db with LiteDB 4.1.4. -->
+    <PackageReference Include="LiteDB" Version="4.1.4" />
+  </ItemGroup>
+
+  <!-- Jellyfin 12.x ships SharpCompress, which the server-side CBR thumbnail uses. The plugin compiles against it and does not bundle it.
+       Jellyfin 10.10.7 ships none, so that build reads CBR pages in the browser (PB_SERVER_CBR off). -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <DefineConstants>$(DefineConstants);PB_SERVER_CBR</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="SharpCompress" Version="0.50.4" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.InteropServices.GuidAttribute">
+      <_Parameter1>59d303d7-b936-4c4b-81a7-e69b2b27d6b6</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration\configPage.html" />
+    <!-- Store icons of the version marker, served by GamesController as /PlayniteBridge/icons/{key}. -->
+    <EmbeddedResource Include="Web\icons\*.png;Web\icons\custom.svg" />
+    <!-- Link icons of the detail page, served by GamesController as /PlayniteBridge/link-icons/{key}. -->
+    <EmbeddedResource Include="Web\link-icons\*.svg" />
+    <!-- Logos of the detail page buttons (CSS masks), served by GamesController as /PlayniteBridge/action-logos/{key}. -->
+    <EmbeddedResource Include="Web\action-logos\*.svg" />
+    <!-- The detail page script: plain file next to the DLL, served by ScriptController as /PlayniteBridge/script.js. -->
+    <Content Include="Web\playnite-bridge.js">
+      <Link>playnite-bridge.js</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- The one table of the plugin's own UI texts, served by ScriptController as /PlayniteBridge/strings.json. -->
+    <Content Include="Web\playnite-bridge-strings.json">
+      <Link>playnite-bridge-strings.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- Plugin logo (meta.json imagePath), shown by Jellyfin's plugin pages. -->
+    <Content Include="logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Compile Remove="tools\**" />
+  </ItemGroup>
+
+  <!-- meta.json next to each build: net8.0 gets the file as it is, net10.0 the same text with targetAbi 12.0.0.0 and version 2.0.0.0. -->
+  <Target Name="WriteMetaJson" AfterTargets="Build">
+    <Copy Condition="'$(TargetFramework)' == 'net8.0'" SourceFiles="meta.json" DestinationFolder="$(OutDir)" />
+    <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+      <MetaJson>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\meta.json').TrimEnd())</MetaJson>
+      <MetaJson>$(MetaJson.Replace('"targetAbi": "10.10.7.0"', '"targetAbi": "12.0.0.0"').Replace('"version": "1.0.0.0"', '"version": "2.0.0.0"'))</MetaJson>
+    </PropertyGroup>
+    <WriteLinesToFile Condition="'$(TargetFramework)' == 'net10.0'" File="$(OutDir)meta.json" Lines="$([MSBuild]::Escape($(MetaJson)))" Overwrite="true"
+      WriteOnlyWhenDifferent="true" />
+  </Target>
+
+</Project>

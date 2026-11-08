@@ -189,7 +189,7 @@ https://raw.githubusercontent.com/chrissix666/Jellyfin-Playnite-Bridge/main/mani
 
 **Manual Installation**
 
-1. Download the latest release ZIP from the [Releases page](https://github.com/chrissix666/Jellyfin-Playnite-Bridge/releases), the one for your Jellyfin version: 1.x for Jellyfin 10.10.7, 2.x for Jellyfin 12.0+
+1. Download the latest release ZIP from the [Releases page](https://github.com/chrissix666/Jellyfin-Playnite-Bridge/releases), the one for your Jellyfin version: `_jellyfin-10.10.7.zip` (1.0.0.0) for Jellyfin 10.10.7, `_jellyfin-12.x.zip` (2.0.0.0) for Jellyfin 12.0+
 2. Extract the whole ZIP, including all files next to the plugin DLL, into its own folder inside your Jellyfin plugins folder, for example `plugins/Playnite Bridge`
 3. Restart Jellyfin
 4. Continue with [First Setup](#first-setup)

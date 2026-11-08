@@ -1,0 +1,29 @@
+[
+  {
+    "guid": "59d303d7-b936-4c4b-81a7-e69b2b27d6b6",
+    "name": "Playnite Bridge",
+    "description": "Shows the games from Playnite, from every store and added by hand, in a Jellyfin library, without adding them to Jellyfin's database.",
+    "overview": "Reads Playnite's library read-only and presents its games from every store like movies in a library of your choice: poster tiles, detail page, start button.",
+    "owner": "chrissix666",
+    "category": "Experimental",
+    "imageUrl": "https://raw.githubusercontent.com/chrissix666/Jellyfin-Playnite-Bridge/main/logo.png",
+    "versions": [
+      {
+        "version": "2.0.0.0",
+        "changelog": "Release for Jellyfin 12.0+",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/chrissix666/Jellyfin-Playnite-Bridge/releases/download/v2.0.0.0/PlayniteBridge_2.0.0.0_jellyfin-12.x.zip",
+        "checksum": "a522ecf6333316eea020625eab0433d5",
+        "timestamp": "2026-11-08T06:58:46Z"
+      },
+      {
+        "version": "1.0.0.0",
+        "changelog": "Release for Jellyfin 10.10.7",
+        "targetAbi": "10.10.7.0",
+        "sourceUrl": "https://github.com/chrissix666/Jellyfin-Playnite-Bridge/releases/download/v1.0.0.0/PlayniteBridge_1.0.0.0_jellyfin-10.10.7.zip",
+        "checksum": "e4c3289e0b4e90e3c8905518fe507986",
+        "timestamp": "2026-11-08T06:58:46Z"
+      }
+    ]
+  }
+]
