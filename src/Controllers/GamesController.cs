@@ -183,7 +183,6 @@ public class GamesController : ControllerBase
                 config.EnableTrailers,
                 config.EnableExtras,
                 config.EnableSteamSpecialFeatures,
-                SteamSpecialsPlacement = config.SteamSpecialsPlacement.ToString(),
                 config.SteamSpecialsMerge,
                 config.VideosShowDividers,
                 config.VideosKeepSlotsTogether,

@@ -35,7 +35,7 @@ public sealed record VideoSlot(int Index, string Parent, string Folder, string L
 public sealed record VideoPlan(IReadOnlySet<string> NativeKeys, bool SteamMerged);
 
 /// <summary>
-/// The Videos area as a table: the nine types, then ten own slots (the Steam row is handled by the Steam code). Pure functions on the settings and on the extras of a page:
+/// The Videos area as a table: the Steam row, the nine types, then ten own slots. Pure functions on the settings and on the extras of a page:
 /// which rows are shown, which are merged into Jellyfin's Special Features row, in which order the merged row lists its videos.
 /// </summary>
 public static class VideoRows
@@ -136,8 +136,8 @@ public static class VideoRows
     public static string RowKey(GameExtra extra) =>
         extra.Slot > 0 ? "slot" + extra.Slot : TypeOf(extra.ExtraType) is VideoRowType t ? TypeKey(t) : TypeKey(VideoRowType.Extras);
 
-    /// <summary>The keys of all rows in their default order: the nine types, then the ten own slots.</summary>
-    public static readonly IReadOnlyList<string> DefaultOrder = Types.Select(TypeKey).Concat(Enumerable.Range(1, 10).Select(n => "slot" + n)).ToList();
+    /// <summary>The keys of all rows in their default order: Steam, the nine types, then the ten own slots.</summary>
+    public static readonly IReadOnlyList<string> DefaultOrder = new[] { SteamKey }.Concat(Types.Select(TypeKey)).Concat(Enumerable.Range(1, 10).Select(n => "slot" + n)).ToList();
 
     /// <summary>The order of the rows as set in VideosRowOrder: the known keys listed (each once), then the missing ones in their default order.</summary>
     public static IReadOnlyList<string> RowOrder(PluginConfiguration config)
@@ -261,6 +261,37 @@ public static class VideoRows
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The cards of Jellyfin's merged Special Features row in their order: <paramref name="native"/> = the merged local videos in <see cref="OrderNative"/> order, <paramref name="steam"/> = the ids of the Steam clips.
+    /// Keep Slots Together on: the Steam clips stand where the Steam row is in the table, among the rows of the first block; off: the local videos are one mixed list and the Steam clips come first. An id once.
+    /// </summary>
+    public static List<(Guid Id, string Run)> NativeCards(PluginConfiguration config, IReadOnlyList<GameExtra> native, IReadOnlyList<Guid> steam)
+    {
+        var cards = native.Select(e => (e.Id, Run: RowKey(e))).ToList();
+        if (steam.Count > 0)
+        {
+            var at = 0;
+            if (config.VideosKeepSlotsTogether)
+            {
+                var first = native.Count == 0 ? 0 : native.Min(e => e.Block);
+                at = cards.Count;
+                var steamAt = TableIndex(config, SteamKey);
+                for (var i = 0; i < native.Count; i++)
+                {
+                    if (native[i].Block == first && TableIndex(config, cards[i].Run) > steamAt)
+                    {
+                        at = i;
+                        break;
+                    }
+                }
+            }
+
+            cards.InsertRange(at, steam.Select(id => (id, SteamKey)));
+        }
+
+        return cards.GroupBy(c => c.Id).Select(g => g.First()).ToList();
     }
 
     /// <summary>The extras of an unmerged row <paramref name="key"/>, sorted by VideosSort (Random with a seed of the page and the row, so every "Show more" page cuts the same order).</summary>

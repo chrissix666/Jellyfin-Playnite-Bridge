@@ -1209,8 +1209,8 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
     }
 
     /// <summary>
-    /// The special features of a game id (any version): the local ones (<see cref="ExtrasForGame"/>) and, with SteamSpecialsPlacement BeforeLocal or AfterLocal, the Steam
-    /// Special Features of the page (<see cref="SteamSpecials"/>) before or after them (<see cref="MergeSteam"/>). Null for any other id.
+    /// The special features of a game id (any version): the local ones (<see cref="ExtrasForGame"/>) and, while the plan merges them, the Steam
+    /// Special Features of the page (<see cref="SteamSpecials"/>) in the order of <see cref="VideoRows.NativeCards"/>. Null for any other id.
     /// </summary>
     private async Task<IActionResult?> SpecialFeaturesResult(ActionExecutingContext context)
     {
@@ -1232,7 +1232,9 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         }
 
         await SteamVideos.EnsureFormats(steam, DateTime.UtcNow, context.HttpContext.RequestAborted).ConfigureAwait(false);
-        return new OkObjectResult(NativeShape(MergeSteam(local, steam.Select(SteamDto).ToList(), config.SteamSpecialsPlacement), config));
+        var dtos = local.Concat(steam.Select(SteamDto)).GroupBy(d => d.Id).ToDictionary(g => g.Key, g => g.First());
+        var cards = VideoRows.NativeCards(config, native, steam.Select(s => s.Id).ToList());
+        return new OkObjectResult(NativeShape(cards.Where(c => dtos.ContainsKey(c.Id)).Select(c => dtos[c.Id]).ToList(), config));
     }
 
     /// <summary>
@@ -1276,12 +1278,17 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         return items;
     }
 
-    /// <summary>The table position the merged row stands at: that of its first row (Steam 0, the types 1 to 9, the slots 10 to 19); 99 when there is no merged row.</summary>
+    /// <summary>The table position the merged row stands at: that of its first row (<see cref="VideoRows.TableIndex"/>, Steam included while its clips are merged); 99 when there is no merged row.</summary>
     public static int NativeAt(IReadOnlyList<GameExtra> page, IReadOnlyList<SteamVideoItem> steamAll, Configuration.PluginConfiguration config)
     {
         var plan = VideoRows.Plan(config, page.Where(e => e.Kind == ExtraKind.Special), steamAll.Count > 0);
-        var first = plan.NativeKeys.Select(k => VideoRows.TableIndex(config, k)).DefaultIfEmpty(99).Min();
-        return plan.SteamMerged ? 0 : first;
+        var at = plan.NativeKeys.Select(k => VideoRows.TableIndex(config, k)).ToList();
+        if (plan.SteamMerged)
+        {
+            at.Add(VideoRows.TableIndex(config, VideoRows.SteamKey));
+        }
+
+        return at.DefaultIfEmpty(99).Min();
     }
 
     /// <summary>
@@ -1306,17 +1313,6 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         var (shown, ordered) = ExtrasIndex.Shown(group, currentId);
         return ordered.Where(v => v == shown || config.ExtrasOfOtherVersions != Configuration.OtherVersionsMode.ThisVersionOnly)
             .Select(SteamVideos.AppIdOf).Where(a => !string.IsNullOrEmpty(a)).Select(a => a!).Distinct().ToList();
-    }
-
-    /// <summary>The Steam items before or after the local ones; an id already in the list is left out.</summary>
-    public static List<BaseItemDto> MergeSteam(List<BaseItemDto> local, IReadOnlyList<BaseItemDto> steam, Configuration.SteamSpecialsPlacement placement)
-    {
-        var all = placement switch
-        {
-            Configuration.SteamSpecialsPlacement.BeforeLocal => steam.Concat(local),
-            _ => local.Concat(steam)
-        };
-        return all.GroupBy(d => d.Id).Select(g => g.First()).ToList();
     }
 
     /// <summary>
@@ -1351,11 +1347,8 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         string Label(string key) => key.StartsWith("slot", StringComparison.Ordinal)
             ? slots.FirstOrDefault(s => "slot" + s.Index == key)?.Label ?? string.Empty
             : VideoRows.TypeTitle(config, Enum.Parse<VideoRowType>(key, true)) == "Own" ? VideoRows.TypeLabel(config, Enum.Parse<VideoRowType>(key, true)) : string.Empty;
-        // The native row's cards in the order SpecialFeatures answers: Before = Steam first.
-        var nativeCards = (config.SteamSpecialsPlacement == Configuration.SteamSpecialsPlacement.BeforeLocal
-            ? steam.Select(s => (s.Id, Run: VideoRows.SteamKey)).Concat(native.Select(e => (e.Id, Run: VideoRows.RowKey(e))))
-            : native.Select(e => (e.Id, Run: VideoRows.RowKey(e))).Concat(steam.Select(s => (s.Id, Run: VideoRows.SteamKey))))
-            .GroupBy(c => c.Id).Select(g => g.First()).ToList();
+        // The native row's cards in the order SpecialFeatures answers.
+        var nativeCards = VideoRows.NativeCards(config, native, steam.Select(s => s.Id).ToList());
         var shown = own.Where(r => row is null || r.Key == row).ToList();
         var shape = RowShape(config.VideosTileShape, shown.SelectMany(r => r.Files).Take(VideoRows.FirstTiles).Where(e => e.ImagePath is not null).Select(e => (e.ImagePath!, ImageCache.Tag(e.ImagePath!) ?? string.Empty)));
         var rows = new List<object>();
@@ -1363,13 +1356,14 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         {
             var page = files.Skip(Math.Max(row is null ? 0 : from, 0)).Take(VideoRows.FirstTiles).ToList();
             var items = (await Task.WhenAll(page.Select(e => ExtraDto(e, canDownload))).ConfigureAwait(false)).ToList();
-            rows.Add(new { key, before = VideoRows.TableIndex(config, key) < nativeAt, title = key.StartsWith("slot", StringComparison.Ordinal) ? "Own" : VideoRows.TypeTitle(config, Enum.Parse<VideoRowType>(key, true)), label = Label(key), count = files.Count, items });
+            rows.Add(new { key, at = VideoRows.TableIndex(config, key), before = VideoRows.TableIndex(config, key) < nativeAt, title = key.StartsWith("slot", StringComparison.Ordinal) ? "Own" : VideoRows.TypeTitle(config, Enum.Parse<VideoRowType>(key, true)), label = Label(key), count = files.Count, items });
         }
 
         return new
         {
             native = nativeCards.Select(c => new { id = c.Id.ToString("N"), run = c.Run, label = c.Run == VideoRows.SteamKey ? string.Empty : Label(c.Run) }).ToArray(),
             steamOwn,
+            steamAt = VideoRows.TableIndex(config, VideoRows.SteamKey),
             nativeAt,
             shape,
             rows

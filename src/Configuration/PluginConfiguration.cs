@@ -189,13 +189,6 @@ public enum OtherVersionsMode
     ThisVersionOnly
 }
 
-/// <summary>Where the merged Steam Special Features stand in Jellyfin's Special Features row: before or after the local special features.</summary>
-public enum SteamSpecialsPlacement
-{
-    BeforeLocal,
-    AfterLocal
-}
-
 /// <summary>Theme music: only the shown version's themes, or, when it has none, those of the group.</summary>
 public enum ThemeSourceMode
 {
@@ -680,9 +673,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Videos tab: the videos of a game's Steam store page as the row Steam Special Features, played in Jellyfin's player (off by default: it asks Steam).</summary>
     public bool EnableSteamSpecialFeatures { get; set; }
 
-    /// <summary>Videos tab: where the merged Steam Special Features stand in Jellyfin's Special Features row, before or after the local ones (Special Features of Other Versions applies to them).</summary>
-    public SteamSpecialsPlacement SteamSpecialsPlacement { get; set; } = SteamSpecialsPlacement.BeforeLocal;
-
     /// <summary>Videos tab: the Steam Special Features go into Jellyfin's Special Features row (off: a row of their own).</summary>
     public bool SteamSpecialsMerge { get; set; }
 
@@ -695,8 +685,8 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Videos tab: the order inside a type or slot (Date = the file's last write time; Steam clips keep Steam's order).</summary>
     public ScreenshotSort VideosSort { get; set; } = ScreenshotSort.NameAscending;
 
-    /// <summary>Videos tab: the order of the types and own slots in the merged row and among the rows of their own, as keys (the nine types, slot1 to slot10), comma-separated.</summary>
-    public string VideosRowOrder { get; set; } = "extras,clips,behindthescenes,deletedscenes,interviews,scenes,samples,shorts,featurettes,slot1,slot2,slot3,slot4,slot5,slot6,slot7,slot8,slot9,slot10";
+    /// <summary>Videos tab: the order of the Steam row, the types and the own slots in the merged row and among the rows of their own, as keys (steam, the nine types, slot1 to slot10), comma-separated.</summary>
+    public string VideosRowOrder { get; set; } = "steam,extras,clips,behindthescenes,deletedscenes,interviews,scenes,samples,shorts,featurettes,slot1,slot2,slot3,slot4,slot5,slot6,slot7,slot8,slot9,slot10";
 
     /// <summary>Videos tab: the shape of the tiles of the rows the plugin draws, fixed or taken from the pictures of the row.</summary>
     public TileShape VideosTileShape { get; set; } = TileShape.Landscape;

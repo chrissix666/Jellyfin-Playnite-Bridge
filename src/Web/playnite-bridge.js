@@ -2384,7 +2384,7 @@
             var signature = items.map(function (item) {
                 return item.Id;
             }).join(',');
-            var existing = view.querySelector('#pbSteamSpecialsCollapsible');
+            var existing = view.querySelector('#pbSteamSpecialsCollapsible, .pbVideoRow[data-pb-row="steam"]');
             if (existing) {
                 if (!items.length) {
                     existing.parentNode.removeChild(existing);
@@ -2409,8 +2409,23 @@
             var section = holder.firstChild;
             section.querySelector('.sectionTitle').textContent = steamLabel || 'Steam Special Features';
             section.pbSignature = signature;
+            // the Steam row stands among the rows of their own where the Steam row is in the Videos table: in the wrapper above or below Jellyfin's Special Features row, before the first row that
+            // comes later in the table; without that wrapper it stands next to the Special Features row
+            var place = view.pbSteamPlace;
+            var wrap = place && view.querySelector(place.before ? '#pbVideoRowsBefore' : '#pbVideoRowsCollapsible');
+            if (wrap) {
+                section.removeAttribute('id');
+                section.classList.add('pbVideoRow');
+                section.dataset.pbRow = 'steam';
+                var later = [].slice.call(wrap.children).filter(function (child) {
+                    return Number(child.dataset.pbAt) > place.at;
+                })[0];
+                wrap.insertBefore(section, later || null);
+                fillImages(section);
+                return;
+            }
             var keys = order.match(/Screenshots|Wallpapers|Documents|Steamspecials|Vrowsbefore|Specials|Videos|Soundtrack|Collections|Related|Actors|Connections|Similar/g) || [];
-            var at = keys.indexOf('Steamspecials');
+            var at = keys.indexOf(place ? (place.before ? 'Vrowsbefore' : 'Videos') : 'Steamspecials');
             var present = function (key) { return !!tileRow(view, key); };
             var next = keys.slice(at + 1).filter(present)[0];
             var prev = keys.slice(0, at).filter(present).pop();
@@ -2442,7 +2457,7 @@
     function videoRowSection(row, shape, dictionary) {
         var more = row.count > row.items.length ? pictureMoreCard(dictionary, shape) : '';
         var holder = document.createElement('div');
-        holder.innerHTML = '<div class="verticalSection detailVerticalSection pbVideoRow" data-pb-row="' + escapeHtml(row.key) + '"><h2 class="sectionTitle sectionTitle-cards padded-right"></h2>'
+        holder.innerHTML = '<div class="verticalSection detailVerticalSection pbVideoRow" data-pb-row="' + escapeHtml(row.key) + '" data-pb-at="' + Number(row.at) + '"><h2 class="sectionTitle sectionTitle-cards padded-right"></h2>'
             + '<div is="emby-scroller" class="padded-top-focusscale padded-bottom-focusscale no-padding" data-centerfocus="true"><div is="emby-itemscontainer" class="scrollSlider focuscontainer-x itemsContainer">'
             + steamCards(row.items, shape, true, dictionary) + more + '</div></div></div>';
         var section = holder.firstChild;
@@ -2514,6 +2529,7 @@
                 orderFlex(view, order);
                 fillImages(wrap);
             });
+            view.pbSteamPlace = { at: data.steamAt, before: data.steamAt < data.nativeAt };
             loadSteamSpecials(view, request, id, order, !!data.steamOwn && !!(configuration && configuration.EnableSteamSpecialFeatures));
         }, function () {
             loadSteamSpecials(view, request, id, order, false);
