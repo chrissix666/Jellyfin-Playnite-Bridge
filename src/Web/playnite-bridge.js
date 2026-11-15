@@ -8015,11 +8015,13 @@
         releaseBoxHold(view);
         var state = boxHoldState();
         if (!view || (state.known && (!state.ours || !state.ids[String(id).replace(/-/g, '').toLowerCase()]))) {
+            releaseEarlyHold();
             return;
         }
         setArtStyle('pbArtBoxHoldStyle', '#itemDetailPage.pbBoxHold .detailImageContainer .cardScalable,' +
             '#itemDetailPage.pbBoxHold .detailImageContainer .pbVersionMarker{visibility:hidden !important}');
         view.classList.add('pbBoxHold');
+        releaseEarlyHold();
         view.pbBoxHoldTimer = setTimeout(function () {
             releaseBoxHold(view);
         }, 3000);
@@ -8031,6 +8033,30 @@
             view.classList.remove('pbBoxHold');
         }
     }
+
+    // A game page opened by a reload or a pasted link gets its viewshow late (Jellyfin builds the card first), so the poster card is hidden from the moment this script
+    // runs: the class on <html> holds until the page's own hold (holdForBox3d) takes over, or for 3 s at most.
+    var earlyHoldTimer = 0;
+
+    function releaseEarlyHold() {
+        clearTimeout(earlyHoldTimer);
+        document.documentElement.classList.remove('pbBoxHoldEarly');
+    }
+
+    (function startEarlyHold() {
+        var m = /^#\/details\?(?:.*&)?id=([0-9a-f-]{32,36})/i.exec(window.location.hash || '');
+        var state = boxHoldState();
+        if (!m || (state.known && (!state.ours || !state.ids[m[1].replace(/-/g, '').toLowerCase()]))) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'pbBoxHoldEarlyStyle';
+        style.textContent = 'html.pbBoxHoldEarly #itemDetailPage .detailImageContainer .cardScalable,' +
+            'html.pbBoxHoldEarly #itemDetailPage .detailImageContainer .pbVersionMarker{visibility:hidden !important}';
+        (document.head || document.documentElement).appendChild(style);
+        document.documentElement.classList.add('pbBoxHoldEarly');
+        earlyHoldTimer = setTimeout(releaseEarlyHold, 3000);
+    }());
 
     function clearBox3d(view) {
         if (view) {
