@@ -85,6 +85,7 @@
         '.pbVersionMarker img{width:1.3em;height:1.3em;object-fit:contain}' +
         // No marker on the detail picture while ArtworkPlus draws Box 3D (BOX3D_CSS below is only loaded when the Bridge draws it, so this must live here).
         '#itemDetailPage.pbGame.artworkplus-box3d:not(.pbCase) .detailImageContainer .pbVersionMarker{display:none !important}' +
+        '.itemDetailPage.artworkplus-threejs-gamehold .detailImageContainer .pbVersionMarker{visibility:hidden !important}' +
         // Top right beside Jellyfin's played check mark (pbBesidePlayed): the marker ends one icon gap left of it. Sizes are in em of the image
         // container; the number badge has an 88% font, hence the division by 0.88.
         '.pbBesidePlayed>.pbVersionMarker.pbTopRight{top:calc(0.225em + 0.8em - 0.88em);right:calc(0.225em + 1.6em + 0.176em)}' +
@@ -5109,6 +5110,81 @@
         knownGamesTimer = setTimeout(saveKnownGames, 1000);
     }
 
+    // every game id of the library, as the server lists them in the ClientConfiguration answer: isGame never has to say "not known" for a game
+    // true once the server has listed the games the user can see (a games library exists for the user): from then on an id that is not in the set is no game
+    var gameListComplete = false;
+
+    function rememberGameIds(ids, libraryId) {
+        gameListComplete = !!libraryId && !!ids;
+        if (!ids || !ids.length) {
+            return;
+        }
+        var set = knownGameSet();
+        var added = false;
+        ids.forEach(function (id) {
+            var key = String(id).replace(/-/g, '').toLowerCase();
+            if (!set[key] && !notGames[key]) {
+                set[key] = true;
+                added = true;
+            }
+        });
+        if (added) {
+            clearTimeout(knownGamesTimer);
+            knownGamesTimer = setTimeout(saveKnownGames, 1000);
+        }
+    }
+
+    // The versions with a Box 3D picture and no case, and whether the Bridge draws Box 3D (Settings From = Playnite Bridge, Box 3D on), kept across page loads: a game
+    // page of such a version hides its poster card from the viewshow on, before the game answer arrives (releaseBoxHold).
+    var BOX_HOLD_KEY = 'pbBox3dHold';
+    var boxHoldData = null;
+
+    function boxHoldState() {
+        if (!boxHoldData) {
+            boxHoldData = { known: false, ours: false, ids: {} };
+            try {
+                var saved = JSON.parse(window.localStorage.getItem(BOX_HOLD_KEY));
+                if (saved) {
+                    boxHoldData.known = true;
+                }
+                if (saved && saved.ours) {
+                    boxHoldData.ours = true;
+                    (saved.ids || []).forEach(function (key) {
+                        boxHoldData.ids[key] = true;
+                    });
+                }
+            } catch (e) {
+            }
+        }
+        return boxHoldData;
+    }
+
+    function rememberBox3dIds(config) {
+        var ours = !!(config && config.Artwork && config.Artwork.ArtPosterBox3dEnabled);
+        var ids = (config && config.Box3dIds) || [];
+        boxHoldData = { known: true, ours: ours, ids: {} };
+        ids.forEach(function (key) {
+            boxHoldData.ids[String(key).toLowerCase()] = true;
+        });
+        try {
+            window.localStorage.setItem(BOX_HOLD_KEY, JSON.stringify({ ours: ours, ids: ours ? ids : [] }));
+        } catch (e) {
+        }
+        // a page held while nothing was known: it stays held only if it is a Box 3D page of ours
+        var open = document.querySelector('#itemDetailPage.pbBoxHold');
+        if (open && !(ours && boxHoldData.ids[String(itemId() || '').replace(/-/g, '').toLowerCase()])) {
+            releaseBoxHold(open);
+        }
+    }
+
+    // Jellyfin's own answer says the open page is no game: a page held while nothing was known goes free at once
+    function releaseBoxHoldOfNonGame(key) {
+        var open = document.querySelector('#itemDetailPage.pbBoxHold');
+        if (open && String(itemId() || '').replace(/-/g, '').toLowerCase() === key) {
+            releaseBoxHold(open);
+        }
+    }
+
     // a key that turned out to be no game (the item's own answer says so) is taken back at once
     function forgetGame(id) {
         var key = String(id).replace(/-/g, '').toLowerCase();
@@ -5133,7 +5209,10 @@
         if (notGames[key]) {
             return false;
         }
-        return knownGameSet()[key] ? true : null;
+        if (knownGameSet()[key]) {
+            return true;
+        }
+        return gameListComplete ? false : null;
     };
 
     function noteItemKind(id, mayBeGame) {
@@ -5145,6 +5224,7 @@
         if (!mayBeGame) {
             notGames[key] = true;
             forgetGame(key);
+            releaseBoxHoldOfNonGame(key);
         }
         (kindWaiters[key] || []).forEach(function (wake) {
             wake(mayBeGame);
@@ -5992,6 +6072,8 @@
                 var hintBefore = libraryHint();
                 lastConfig = config;
                 lastConfigTime = Date.now();
+                rememberGameIds(config.GameIds, config.LibraryId);
+                rememberBox3dIds(config);
                 rememberLibrary(config);
                 applyLibraryIcon();
                 reloadOnFirstSight(config, hintBefore);
@@ -7823,7 +7905,7 @@
         if (pct === 100) {
             return '';
         }
-        // the poster's geometry rules (its container takes the card's place) stay on every game page, also with a case; only the size rules give way (Q12)
+        // the poster's geometry rules (its container takes the card's place) stay on every game page, also with a case; only the size rules give way
         var geometryScope = scope ? scope : '';
         scope = scope || ':not(.pbCase):not(.pbBox3d)';
         var f = pct / 100;
@@ -7927,8 +8009,32 @@
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .cardImageIcon{display:none !important}' +
         '#itemDetailPage.pbGame.pbBox3d.pbBox3dIn:not(.pbCase) .detailImageContainer .cardImageContainer{animation:pbBox3dIn 250ms ease}';
 
+    // The poster card of a Box 3D page is invisible from the viewshow until the Box 3D stands or it is decided that there is none (3 s at most), so the 2D
+    // poster (or the card of the page before) is never drawn.
+    function holdForBox3d(view, id) {
+        releaseBoxHold(view);
+        var state = boxHoldState();
+        if (!view || (state.known && (!state.ours || !state.ids[String(id).replace(/-/g, '').toLowerCase()]))) {
+            return;
+        }
+        setArtStyle('pbArtBoxHoldStyle', '#itemDetailPage.pbBoxHold .detailImageContainer .cardScalable,' +
+            '#itemDetailPage.pbBoxHold .detailImageContainer .pbVersionMarker{visibility:hidden !important}');
+        view.classList.add('pbBoxHold');
+        view.pbBoxHoldTimer = setTimeout(function () {
+            releaseBoxHold(view);
+        }, 3000);
+    }
+
+    function releaseBoxHold(view) {
+        if (view) {
+            clearTimeout(view.pbBoxHoldTimer);
+            view.classList.remove('pbBoxHold');
+        }
+    }
+
     function clearBox3d(view) {
         if (view) {
+            releaseBoxHold(view);
             view.classList.remove('pbCase', 'pbBox3d', 'pbBox3dIn');
             view.style.removeProperty('--pb-box3d');
         }
@@ -8010,6 +8116,7 @@
 
     // Box 3D failed (no entry, the picture does not decode, too late, request error): the 2D poster with its own rules comes back.
     function box3dFailed(view) {
+        releaseBoxHold(view);
         view.classList.remove('pbBox3d', 'pbBox3dIn');
         view.style.removeProperty('--pb-box3d');
         setArtStyle('pbArtBox3dStyle', '');
@@ -8024,6 +8131,7 @@
         var kind = syncPosterKind(view, id, a);
         view.pbBoxArgs = { api: api, id: id, a: a, gen: gen, current: current, game: game };
         if (kind !== 'box3d') {
+            releaseBoxHold(view);
             return;
         }
         setArtStyle('pbArtBox3dStyle', box3dCss(a));
@@ -8052,6 +8160,7 @@
                 if (gen === artGeneration && current() && view.classList.contains('pbBox3d')) {
                     view.style.setProperty('--pb-box3d', 'url("' + url.replace(/"/g, '%22') + '")');
                     view.classList.add('pbBox3dIn');
+                    releaseBoxHold(view);
                 }
             });
         }).catch(fail);
@@ -8573,6 +8682,9 @@
         }
         var id = itemId();
         var api = window.ApiClient;
+        if (!keep && view && view.id === 'itemDetailPage' && id) {
+            holdForBox3d(view, id);
+        }
         if (!view || view.id !== 'itemDetailPage' || !id || !api) {
             return;
         }

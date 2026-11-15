@@ -149,6 +149,8 @@ public class GamesController : ControllerBase
                 Markers = marked.ToDictionary(m => Guid.Parse(m.Group.Main.Id).ToString("N"), m => m.Icons),
                 MarkerTitles = marked.ToDictionary(m => Guid.Parse(m.Group.Main.Id).ToString("N"), m => string.Join(", ", GameGroups.MarkerLabels(m.Group))),
                 VersionCounts = VersionCounts(groups, config),
+                GameIds = groups.SelectMany(g => g.Versions).Select(v => Guid.Parse(v.Id).ToString("N")).ToArray(),
+                Box3dIds = Box3dVersionIds(groups),
                 config.DimUninstalled,
                 DimStrength = DimStrength(config),
                 Uninstalled = UninstalledTiles(groups, config.DimUninstalled),
@@ -267,6 +269,18 @@ public class GamesController : ControllerBase
                 follow = (bool)typeof(PluginConfiguration).GetProperty("VersionFollow" + t)!.GetValue(config)!,
                 keep = (bool)typeof(PluginConfiguration).GetProperty("VersionKeep" + t)!.GetValue(config)!
             });
+
+    /// <summary>The versions (32 hex) that have a Box 3D picture and are no 3D case: the web script hides the poster card of such a page from the first frame, before the game answer.</summary>
+    private string[] Box3dVersionIds(IEnumerable<GameGroup> groups)
+    {
+        var caseData = _filter.DataFor(User);
+        var caseImages = _filter.Images();
+        var caseSettings = GameCaseData.CurrentSettings(Plugin.Instance!.ConfigurationFilePath);
+        return groups.SelectMany(g => g.Versions).Select(v => Guid.Parse(v.Id))
+            .Where(id => ArtworkPlusLinkCore.CasePart(caseData, caseImages, id, "box3d") is not null
+                && ArtworkPlusLinkCore.CaseKind(caseData, caseImages, id, caseSettings) == "")
+            .Select(id => id.ToString("N")).ToArray();
+    }
 
     /// <summary>
     /// Number of versions per tile id (main version of each group, 32 hex) that the web script shows as Jellyfin's number in the list view while tiles show icons.

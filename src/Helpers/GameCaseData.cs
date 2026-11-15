@@ -9,7 +9,7 @@ using System.Xml.Linq;
 namespace Jellyfin.Plugin.PlayniteBridge.Helpers;
 
 /// <summary>
-/// The data layer of the 3D game case for ArtworkPlus (contract addendum 2026-11-14, concept-game-cases-2026-11-13.md section 13): which shape a game version
+/// The data layer of the 3D game case for ArtworkPlus: which shape a game version
 /// gets (box or disc case), its platform, and the rows of <c>ArtworkPlusLink.GameCase</c>. Pure: it reads only the files it is given (the picture headers and the
 /// one-word file <c>casetype.txt</c>), writes nothing, and the picture paths come from the plugin's own index, never from a request.
 /// </summary>
@@ -21,7 +21,7 @@ public static class GameCaseData
     /// <summary>The depth of a box without a spine picture (the measured median of the box spines).</summary>
     public const string BoxDepthDefault = "0.164";
 
-    /// <summary>The largest depth of a box (the measured boxes reach 0.1954); a wider "spine" picture is no spine of a box (Coordinator 2026-11-14, F3).</summary>
+    /// <summary>The largest depth of a box (the measured boxes reach 0.1954); a wider "spine" picture is no spine of a box.</summary>
     public const double BoxDepthMax = 0.25;
 
     /// <summary>The file name of the owner's decision per version (one word: box or disc).</summary>
