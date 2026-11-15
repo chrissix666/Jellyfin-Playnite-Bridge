@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller;
+using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -42,6 +43,7 @@ public class Registration : IHostedService
         // The filter is a singleton that Jellyfin would make at the first web request; ArtworkPlusLink and GlobeLink answer through it, so it is made at the start,
         // in the background and again a few times if the server is not ready yet.
         _ = Task.Run(() => CreateFilterAsync(cancellationToken), CancellationToken.None);
+        Helpers.Box3dDrawer.Plugins = () => _services.GetRequiredService<IPluginManager>().Plugins.Select(p => (p.Id, p.Manifest.Status, (object?)p.Instance));
         try
         {
             var assemblies = AssemblyLoadContext.All.SelectMany(c => c.Assemblies).ToList();
@@ -118,6 +120,70 @@ public static class IndexHtmlCallback
 {
     public const string ScriptTag = "<script defer src=\"../PlayniteBridge/script.js\"></script>";
 
+    /// <summary>Marker of the head block of the Box 3D cards (rules + marking script); written only while somebody draws Box 3D, once.</summary>
+    public const string BoxHeadId = "pbBoxStatic";
+
+    // The card of a Box 3D game carries "tag=pbbox-" in the address of its picture (the item answer says so, VirtualItemsFilter.BoxTagPrefix). This script runs in <head>, before the web
+    // client's own scripts, with no data: every card the web client inserts on a detail page whose picture carries the prefix gets the class pbBoxCard (its container pbBoxHost) in the
+    // microtask of the insertion, before the first paint. Works in every browser that has MutationObserver (no :has()).
+    private const string BoxMarkScript =
+        "(function(){try{var S='.cardImageContainer[data-src*=\"tag=pbbox-\"],.cardImageContainer[style*=\"tag=pbbox-\"]';"
+        + "function mark(n){if(n.nodeType!==1){return;}var l=n.matches&&n.matches(S)?[n]:(n.querySelectorAll?n.querySelectorAll(S):[]);"
+        + "for(var i=0;i<l.length;i++){var c=l[i].closest('.card');if(c){c.classList.add('pbBoxCard');var h=c.closest('.detailImageContainer');if(h){h.classList.add('pbBoxHost');}}}}"
+        + "new MutationObserver(function(ms){if((location.hash||'').indexOf('#/details')!==0){return;}"
+        + "for(var i=0;i<ms.length;i++){var a=ms[i].addedNodes;for(var j=0;j<a.length;j++){mark(a[j]);}}}).observe(document,{childList:true,subtree:true});}catch(e){}})();";
+
+    /// <summary>Static rules of the marked Box 3D card: no card ground, no placeholder icon or blurhash, no marker, the picture contained at the bottom; plus its size and anchor.</summary>
+    public static string BoxRules(Helpers.Box3dDraw draw)
+    {
+        var css = new System.Text.StringBuilder();
+        css.Append(".card.pbBoxCard{background:transparent !important;box-shadow:none !important}")
+            .Append(".pbBoxCard .cardPadder{background-color:transparent !important;box-shadow:none !important}")
+            .Append(".pbBoxCard .cardPadder *{visibility:hidden !important}")
+            .Append(".pbBoxCard .blurhash-canvas{display:none !important}")
+            .Append(".pbBoxCard .cardImageContainer{background-color:transparent !important;background-size:contain !important;background-position:center bottom !important;background-repeat:no-repeat !important;animation:none !important}")
+            .Append(".pbBoxCard .cardImageContainer .pbVersionMarker{display:none !important}");
+        if (draw.SizePercent != 100 && draw.SizePercent > 0)
+        {
+            // The same numbers as the web script's poster rules (posterCss): the card's width and margins in vw per layout, the container lifted into the card's place.
+            var f = draw.SizePercent / 100.0;
+            var (ax, ay) = Anchor(draw.Anchor);
+            string N(double v) => (Math.Round(v, 4) + 0.0).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+            var host = ".detailImageContainer.hide-mobile.pbBoxHost";
+            css.Append(".layout-desktop " + host + ",.layout-tv " + host + "{position:relative;z-index:3}")
+                .Append(".layout-desktop " + host + "{top:-12.96em}")
+                .Append(".layout-desktop " + host + ">.card{top:0}")
+                .Append(".layout-tv " + host + "{top:18.75vw}")
+                .Append(".layout-tv " + host + ">.card{top:0;transform:translateY(-50%)}")
+                .Append("@media all and (max-width:62.5em){.layout-desktop " + host + "{top:0}}");
+            foreach (var (layout, width, mobile) in new[] { (".layout-desktop", 25.0, false), (".layout-tv", 25.0, false), (".layout-mobile", 30.0, true) })
+            {
+                var root = layout + " .detailImageContainer.pbBoxHost ";
+                var shift = width * 1.5 * (1 - f) * (mobile ? 1 - ay : ay);
+                css.Append(root + ".card.pbBoxCard{width:" + N(width * f) + "vw;max-width:" + N(width * f) + "vw;margin-left:" + N(width * (1 - f) * ax) + "vw;margin-" + (mobile ? "bottom" : "top") + ":" + N(shift) + "vw}");
+            }
+        }
+
+        return css.ToString();
+    }
+
+    private static (double X, double Y) Anchor(string anchor) => anchor switch
+    {
+        "TopCenter" => (0.5, 0),
+        "TopRight" => (1, 0),
+        "CenterLeft" => (0, 0.5),
+        "Center" => (0.5, 0.5),
+        "CenterRight" => (1, 0.5),
+        "BottomLeft" => (0, 1),
+        "BottomCenter" => (0.5, 1),
+        "BottomRight" => (1, 1),
+        _ => (0, 0)
+    };
+
+    /// <summary>The head block: the rules of <see cref="BoxRules"/> and the marking script; empty while nobody draws Box 3D (the page is then exactly Jellyfin's own).</summary>
+    public static string BoxHead() =>
+        Helpers.Box3dDrawer.Current() is { } draw ? "<style id=\"" + BoxHeadId + "\">" + BoxRules(draw) + "</style><script>" + BoxMarkScript + "</script>" : string.Empty;
+
     /// <summary>Error log, set by <see cref="Registration"/>; a plain delegate so the callback needs no Jellyfin types.</summary>
     public static Action<Exception, string>? Log { get; set; }
 
@@ -147,7 +213,10 @@ public static class IndexHtmlCallback
                 return contents;
             }
 
-            return contents.Insert(body, ScriptTag);
+            // The Box 3D head block goes right after <head> (before any stylesheet or script), once, only while somebody draws Box 3D.
+            var head = contents.IndexOf("<head>", StringComparison.Ordinal);
+            var result = contents.Insert(body, ScriptTag);
+            return head >= 0 && head < body && !contents.Contains(BoxHeadId, StringComparison.Ordinal) && BoxHead() is { Length: > 0 } block ? result.Insert(head + "<head>".Length, block) : result;
         }
         catch (Exception ex)
         {

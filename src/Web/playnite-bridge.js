@@ -5141,11 +5141,13 @@
 
     function boxHoldState() {
         if (!boxHoldData) {
-            boxHoldData = { known: false, ours: false, ids: {} };
+            boxHoldData = { known: false, ours: false, ids: {}, tags: {}, server: false };
             try {
                 var saved = JSON.parse(window.localStorage.getItem(BOX_HOLD_KEY));
                 if (saved) {
                     boxHoldData.known = true;
+                    boxHoldData.tags = saved.tags || {};
+                    boxHoldData.server = !!saved.server;
                 }
                 if (saved && saved.ours) {
                     boxHoldData.ours = true;
@@ -5162,12 +5164,14 @@
     function rememberBox3dIds(config) {
         var ours = !!(config && config.Artwork && config.Artwork.ArtPosterBox3dEnabled);
         var ids = (config && config.Box3dIds) || [];
-        boxHoldData = { known: true, ours: ours, ids: {} };
+        var tags = (config && config.Box3dTags) || {};
+        var server = !!(config && config.Box3dFromServer);
+        boxHoldData = { known: true, ours: ours, ids: {}, tags: tags, server: server };
         ids.forEach(function (key) {
             boxHoldData.ids[String(key).toLowerCase()] = true;
         });
         try {
-            window.localStorage.setItem(BOX_HOLD_KEY, JSON.stringify({ ours: ours, ids: ours ? ids : [] }));
+            window.localStorage.setItem(BOX_HOLD_KEY, JSON.stringify({ ours: ours, ids: ours ? ids : [], tags: tags, server: server }));
         } catch (e) {
         }
         // a page held while nothing was known: it stays held only if it is a Box 3D page of ours
@@ -5213,6 +5217,20 @@
             return true;
         }
         return gameListComplete ? false : null;
+    };
+
+    // true: the Bridge draws the Box 3D of this game (it holds the card until its box stands); false: it does not (known); null: not known (yet). Answers at once.
+    window.PlayniteBridge.box3d = function (id) {
+        var state = boxHoldState();
+        if (!state.known) {
+            return null;
+        }
+        return !!(state.ours && state.ids[String(id || '').replace(/-/g, '').toLowerCase()]);
+    };
+
+    // The tag of the Box 3D picture of a version (games/{id}/pictures/box3d?tag=), whoever draws the Box 3D; null: no Box 3D picture or not known (yet).
+    window.PlayniteBridge.box3dTag = function (id) {
+        return boxHoldState().tags[String(id || '').replace(/-/g, '').toLowerCase()] || null;
     };
 
     function noteItemKind(id, mayBeGame) {
@@ -7921,10 +7939,11 @@
             '@media all and (max-width:62.5em){.layout-desktop' + c + '{top:0}}';
         return geometry + [['.layout-desktop', 25, false], ['.layout-tv', 25, false], ['.layout-mobile', 30, true]].map(function (lay) {
             var root = lay[0] + ' #itemDetailPage.pbGame' + scope + ' .detailImageContainer ';
-            var css = root + '.card{width:' + lay[1] * f + 'vw;max-width:' + lay[1] * f + 'vw;margin-left:' + lay[1] * (1 - f) * a[0] + 'vw}';
+            // a card the server drew (pbBoxCard) takes its size from the server's rules, not from these
+            var css = root + '.card:not(.pbBoxCard){width:' + lay[1] * f + 'vw;max-width:' + lay[1] * f + 'vw;margin-left:' + lay[1] * (1 - f) * a[0] + 'vw}';
             return css + [['', 1.5], ['.backdropCard', 0.5625], ['.squareCard', 1]].map(function (shape) {
                 var shift = lay[1] * shape[1] * (1 - f) * (lay[2] ? 1 - a[1] : a[1]);
-                return root + '.card' + shape[0] + '{margin-' + (lay[2] ? 'bottom' : 'top') + ':' + shift + 'vw}';
+                return root + '.card' + shape[0] + ':not(.pbBoxCard){margin-' + (lay[2] ? 'bottom' : 'top') + ':' + shift + 'vw}';
             }).join('');
         }).join('');
     }
@@ -8003,23 +8022,23 @@
         // jellyfin-web paints .cardBox:not(.visualCardBox) .cardPadder #242424 with a shadow (card.scss): not behind a free-standing box. The marker of the version stays out as at the Three.js case.
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardPadder{background-color:transparent !important;box-shadow:none !important}' +
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .pbVersionMarker{display:none !important}' +
-        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer{background-color:transparent !important;' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer:not([data-src*="tag=pbbox-"]):not([style*="tag=pbbox-"]){background-color:transparent !important;' +
         'background-image:var(--pb-box3d,none) !important;background-size:contain !important;background-position:center bottom !important;background-repeat:no-repeat !important}' +
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .blurhash-canvas,' +
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .cardImageIcon{display:none !important}' +
-        '#itemDetailPage.pbGame.pbBox3d.pbBox3dIn:not(.pbCase) .detailImageContainer .cardImageContainer{animation:pbBox3dIn 250ms ease}';
+        '#itemDetailPage.pbGame.pbBox3d.pbBox3dIn:not(.pbCase) .detailImageContainer .cardImageContainer:not([data-src*="tag=pbbox-"]):not([style*="tag=pbbox-"]){animation:pbBox3dIn 250ms ease}';
 
     // The poster card of a Box 3D page is invisible from the viewshow until the Box 3D stands or it is decided that there is none (3 s at most), so the 2D
     // poster (or the card of the page before) is never drawn.
     function holdForBox3d(view, id) {
         releaseBoxHold(view);
         var state = boxHoldState();
-        if (!view || (state.known && (!state.ours || !state.ids[String(id).replace(/-/g, '').toLowerCase()]))) {
+        if (!view || (state.known && (state.server || !state.ours || !state.ids[String(id).replace(/-/g, '').toLowerCase()]))) {
             releaseEarlyHold();
             return;
         }
-        setArtStyle('pbArtBoxHoldStyle', '#itemDetailPage.pbBoxHold .detailImageContainer .cardScalable,' +
-            '#itemDetailPage.pbBoxHold .detailImageContainer .pbVersionMarker{visibility:hidden !important}');
+        setArtStyle('pbArtBoxHoldStyle', '#itemDetailPage.pbBoxHold .detailImageContainer .card:not(.pbBoxCard) .cardScalable,' +
+            '#itemDetailPage.pbBoxHold .detailImageContainer .card:not(.pbBoxCard) .pbVersionMarker{visibility:hidden !important}');
         view.classList.add('pbBoxHold');
         releaseEarlyHold();
         view.pbBoxHoldTimer = setTimeout(function () {
@@ -8046,13 +8065,13 @@
     (function startEarlyHold() {
         var m = /^#\/details\?(?:.*&)?id=([0-9a-f-]{32,36})/i.exec(window.location.hash || '');
         var state = boxHoldState();
-        if (!m || (state.known && (!state.ours || !state.ids[m[1].replace(/-/g, '').toLowerCase()]))) {
+        if (!m || (state.known && (state.server || !state.ours || !state.ids[m[1].replace(/-/g, '').toLowerCase()]))) {
             return;
         }
         var style = document.createElement('style');
         style.id = 'pbBoxHoldEarlyStyle';
-        style.textContent = 'html.pbBoxHoldEarly #itemDetailPage .detailImageContainer .cardScalable,' +
-            'html.pbBoxHoldEarly #itemDetailPage .detailImageContainer .pbVersionMarker{visibility:hidden !important}';
+        style.textContent = 'html.pbBoxHoldEarly #itemDetailPage .detailImageContainer .card:not(.pbBoxCard) .cardScalable,' +
+            'html.pbBoxHoldEarly #itemDetailPage .detailImageContainer .card:not(.pbBoxCard) .pbVersionMarker{visibility:hidden !important}';
         (document.head || document.documentElement).appendChild(style);
         document.documentElement.classList.add('pbBoxHoldEarly');
         earlyHoldTimer = setTimeout(releaseEarlyHold, 3000);
@@ -8121,6 +8140,33 @@
         }, 1500);
     }
 
+    // The card the server drew (its picture address carries 'tag=pbbox-') wears the classes pbBoxCard / pbBoxHost that the head script of index.html puts on a card at its insertion.
+    // A version switch in place re-uses the card and only changes its picture: the classes follow the picture address (set or dropped), checked at every change of it.
+    function syncServerBoxMarks(view) {
+        var host = view.querySelector('.detailImageContainer');
+        if (!host) {
+            return;
+        }
+        var pic = host.querySelector('.cardImageContainer');
+        var box = !!(pic && /tag=pbbox-/.test((pic.getAttribute('data-src') || '') + (pic.getAttribute('style') || '')));
+        var card = host.querySelector('.card');
+        if (card) {
+            card.classList.toggle('pbBoxCard', box);
+        }
+        host.classList.toggle('pbBoxHost', box);
+    }
+
+    function watchServerBoxMarks(view) {
+        var host = view.querySelector('.detailImageContainer');
+        if (view.pbMarkWatch || !host || typeof MutationObserver !== 'function') {
+            return;
+        }
+        view.pbMarkWatch = new MutationObserver(function () {
+            syncServerBoxMarks(view);
+        });
+        view.pbMarkWatch.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'data-src'] });
+    }
+
     function syncPosterKind(view, id, a) {
         var kind = view.pbGame ? posterKind(view.pbGame, id) : '';
         var ours = !!(a && a.ArtPosterBox3dEnabled);
@@ -8137,6 +8183,8 @@
                 holdPoster(view);
             }
         }
+        watchServerBoxMarks(view);
+        syncServerBoxMarks(view);
         return kind === 'box3d' && ours ? 'box3d' : kind === 'case' ? 'case' : '';
     }
 
@@ -10435,6 +10483,47 @@
         }
     });
 
+    // Jellyfin's reload of a page (the late start below) builds the card anew: the standing Box 3D of the server would be gone for the frames the new card needs to load its picture
+    // and to fade it in. A copy of the picture stands over the card until the new one has painted (then it is removed; 1.5 s at the most).
+    function keepServerBoxAcrossRebuild(view) {
+        var pic = view.querySelector('.detailImageContainer .pbBoxCard .cardImageContainer');
+        var image = pic && pic.style.backgroundImage;
+        var host = view.querySelector('.detailImageContainer');
+        if (!image || !host || typeof MutationObserver !== 'function') {
+            return;
+        }
+        var rect = pic.getBoundingClientRect();
+        var ghost = document.createElement('div');
+        ghost.className = 'pbBoxGhost';
+        ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:5;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height +
+            'px;background-image:' + image + ';background-size:contain;background-position:center bottom;background-repeat:no-repeat';
+        document.body.appendChild(ghost);
+        var observer = null;
+        var gone = false;
+        var remove = function () {
+            if (gone) {
+                return;
+            }
+            gone = true;
+            if (observer) {
+                observer.disconnect();
+            }
+            if (ghost.parentNode) {
+                ghost.parentNode.removeChild(ghost);
+            }
+        };
+        observer = new MutationObserver(function () {
+            var now = host.querySelector('.cardImageContainer');
+            if (now && now !== pic && now.style.backgroundImage && /tag=pbbox-/.test(now.style.backgroundImage)) {
+                // the new picture is set; Jellyfin fades it in over 0.1 s: the copy goes after that
+                setTimeout(remove, 250);
+                observer.disconnect();
+            }
+        });
+        observer.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+        setTimeout(remove, 1500);
+    }
+
     // Late start on a cold load of a detail URL: this deferred script comes after Jellyfin's bundles, which can show the page before the listeners
     // above exist. When a detail page is shown at load and no viewshow follows within a second, it is shown again as a version switch does it
     // (viewbeforehide + viewshow), so Jellyfin's controller reloads the item through the wrapped getItem.
@@ -10465,6 +10554,7 @@
             }).then(function (game) {
                 if (game && stillLateView()) {
                     var detail = { type: lateView.getAttribute('data-type'), params: {}, isRestored: false, options: {} };
+                    keepServerBoxAcrossRebuild(lateView);
                     lateView.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: detail }));
                     lateView.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: detail }));
                 }

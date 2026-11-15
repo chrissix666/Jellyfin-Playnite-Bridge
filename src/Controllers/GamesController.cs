@@ -151,6 +151,9 @@ public class GamesController : ControllerBase
                 VersionCounts = VersionCounts(groups, config),
                 GameIds = groups.SelectMany(g => g.Versions).Select(v => Guid.Parse(v.Id).ToString("N")).ToArray(),
                 Box3dIds = Box3dVersionIds(groups),
+                Box3dTags = Box3dVersionTags(groups),
+                // The item answer of a Box 3D game already carries the Box 3D as its Primary picture (whoever draws it): the web script neither holds the card nor fades the picture in again.
+                Box3dFromServer = Box3dDrawer.Current() is not null,
                 config.DimUninstalled,
                 DimStrength = DimStrength(config),
                 Uninstalled = UninstalledTiles(groups, config.DimUninstalled),
@@ -280,6 +283,24 @@ public class GamesController : ControllerBase
             .Where(id => ArtworkPlusLinkCore.CasePart(caseData, caseImages, id, "box3d") is not null
                 && ArtworkPlusLinkCore.CaseKind(caseData, caseImages, id, caseSettings) == "")
             .Select(id => id.ToString("N")).ToArray();
+    }
+
+    /// <summary>The tag of the Box 3D picture (the one games/{id}/pictures lists, loaded as games/{id}/pictures/box3d?tag=) per version of <see cref="Box3dVersionIds"/>, so the
+    /// web script and ArtworkPlus can load the picture at once, without asking for the list first. Independent of who draws the Box 3D.</summary>
+    private Dictionary<string, string> Box3dVersionTags(IEnumerable<GameGroup> groups)
+    {
+        var data = _filter.DataFor(User);
+        var images = _filter.Images();
+        var tags = new Dictionary<string, string>();
+        foreach (var key in Box3dVersionIds(groups))
+        {
+            if (ImageCache.Tag(GamePictures.Picture(data, images, Guid.Parse(key), "box3d")) is string tag)
+            {
+                tags[key] = tag;
+            }
+        }
+
+        return tags;
     }
 
     /// <summary>

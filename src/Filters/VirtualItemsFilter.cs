@@ -719,6 +719,13 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         var game = hit.Game!;
         var group = hit.Group!;
         var dto = ToDto(group, game, libraryId.Value, Images());
+        // The detail page draws the Box 3D picture itself (Jellyfin builds the card from this answer): its Primary tag carries the prefix, no BlurHash for it.
+        if (ServerBoxTag(data, Images(), game) is string serverBox)
+        {
+            dto.ImageTags![ImageType.Primary] = serverBox;
+            dto.ImageBlurHashes?.Remove(ImageType.Primary);
+        }
+
         // Several versions: Jellyfin's "Version" list (filled by the web script, a virtual item gets none from Jellyfin Web), main version first.
         // A twin left out of its group gets the group's list too.
         if (group.Versions.Count > 1)
@@ -750,6 +757,27 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         return new OkObjectResult(dto);
     }
 
+    /// <summary>The prefix of the Primary tag that makes Jellyfin's detail card draw the Box 3D picture (the head script and rules of index.html match it).</summary>
+    public const string BoxTagPrefix = "pbbox-";
+
+    /// <summary>The prefixed Primary tag of a version whose Box 3D is drawn (by the Bridge or ArtworkPlus, <see cref="Box3dDrawer"/>), has a Box 3D picture and no case; else null.</summary>
+    private static string? ServerBoxTag(GameData data, ImageCache images, GameEntry game)
+    {
+        if (Box3dDrawer.Current() is null)
+        {
+            return null;
+        }
+
+        var id = Guid.Parse(game.Id);
+        var settings = GameCaseData.CurrentSettings(Plugin.Instance.ConfigurationFilePath);
+        if (ArtworkPlusLinkCore.CasePart(data, images, id, "box3d") is null || ArtworkPlusLinkCore.CaseKind(data, images, id, settings) != string.Empty)
+        {
+            return null;
+        }
+
+        return ImageCache.Tag(GamePictures.Picture(data, images, id, "box3d")) is string tag ? BoxTagPrefix + tag : null;
+    }
+
     private async Task<IActionResult?> ImageResult(ActionExecutingContext context)
     {
         var id = Arg<Guid>(context, "itemId");
@@ -759,6 +787,19 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         var game = hit?.Kind == GameHitKind.Game ? hit.Game : null;
         // The square list view image (the script asks it with pbIcon=1): the game's icon and/or square image instead of the cover, as List Image says.
         var icon = game is not null && type == ImageType.Primary && context.HttpContext.Request.Query["pbIcon"].FirstOrDefault() == "1";
+        // The prefixed Primary tag of a Box 3D game is the Box 3D picture itself, unscaled (its tag is the file's, so the browser may keep it for a year).
+        if (game is not null && type == ImageType.Primary && Arg<string>(context, "tag") is string boxAsked && boxAsked.StartsWith(BoxTagPrefix, StringComparison.Ordinal))
+        {
+            var boxPath = GamePictures.Picture(data, Images(), id, "box3d");
+            if (boxPath is null || !File.Exists(boxPath))
+            {
+                return new NotFoundResult();
+            }
+
+            // Scaled to fit the size the card asks for, never cropped to its 2:3 (contain): the picture is the box with its transparent edge.
+            return await ProcessedImage(context, boxPath, type, blurHash: false, contain: true).ConfigureAwait(false);
+        }
+
         if (game is null)
         {
             // A collection folder shows its poster game's cover and backdrop, nothing else.
@@ -923,11 +964,11 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
     /// must check it on every use: "no-cache", and 304 when If-Modified-Since equals its Last-Modified. Not <paramref name="pinned"/> (a game image that is not the asked
     /// version's own under its own tag): "no-cache" as well.
     /// </summary>
-    private async Task<IActionResult> ProcessedImage(ActionExecutingContext context, string path, ImageType type, bool revalidate = false, bool pinned = true, bool blurHash = true)
+    private async Task<IActionResult> ProcessedImage(ActionExecutingContext context, string path, ImageType type, bool revalidate = false, bool pinned = true, bool blurHash = true, bool contain = false)
     {
         try
         {
-            return await ProcessedImageCore(context, path, type, revalidate, pinned, blurHash).ConfigureAwait(false);
+            return await ProcessedImageCore(context, path, type, revalidate, pinned, blurHash, contain).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -937,7 +978,7 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         }
     }
 
-    private async Task<IActionResult> ProcessedImageCore(ActionExecutingContext context, string path, ImageType type, bool revalidate, bool pinned, bool blurHash)
+    private async Task<IActionResult> ProcessedImageCore(ActionExecutingContext context, string path, ImageType type, bool revalidate, bool pinned, bool blurHash, bool contain)
     {
         var request = context.HttpContext.Request;
         var options = ImageCache.ProcessingOptions(
@@ -946,10 +987,10 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
             type,
             Arg<int?>(context, "width"),
             Arg<int?>(context, "height"),
-            Arg<int?>(context, "maxWidth"),
-            Arg<int?>(context, "maxHeight"),
-            Arg<int?>(context, "fillWidth"),
-            Arg<int?>(context, "fillHeight"),
+            contain ? Arg<int?>(context, "maxWidth") ?? Arg<int?>(context, "fillWidth") : Arg<int?>(context, "maxWidth"),
+            contain ? Arg<int?>(context, "maxHeight") ?? Arg<int?>(context, "fillHeight") : Arg<int?>(context, "maxHeight"),
+            contain ? null : Arg<int?>(context, "fillWidth"),
+            contain ? null : Arg<int?>(context, "fillHeight"),
             Arg<int?>(context, "quality"),
             Arg<ImageFormat?>(context, "format"),
             request.Headers.GetCommaSeparatedValues(HeaderNames.Accept),
