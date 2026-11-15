@@ -71,6 +71,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Compile Remove="tools\**" />
+    <Compile Remove="_backup\**" />
   </ItemGroup>
 
   <!-- meta.json next to each build: net8.0 gets the file as it is, net10.0 the same text with targetAbi 12.0.0.0 and version 2.0.0.0. -->

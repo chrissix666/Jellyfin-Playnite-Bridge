@@ -47,6 +47,19 @@ public static class ArtworkPlusLink
         Answer(false, (filter, data) => ArtworkPlusLinkCore.IsVisibleTo(data, id, userId, filter.VisibleUser,
             Plugin.Instance!.Configuration.ApplyParentalControls ? filter.ParentalDataFor : null), id);
 
+    /// <summary>
+    /// The 3D case of a version for ArtworkPlus, rows [part, value, tag]: kind (box|disc), depth (box only), source (spine|rule|user), platform, front, back, spine, disc, logo
+    /// (path and tag, empty when missing), name, publisher and developer (one row each). Empty when the user may not see the game, front or back is missing, or on any error.
+    /// </summary>
+    public static string[][] GameCase(Guid id, Guid userId) =>
+        Answer(Array.Empty<string[]>(), (filter, data) => ArtworkPlusLinkCore.GameCase(data, filter.Images(), id, userId, filter.VisibleUser,
+            Plugin.Instance!.Configuration.ApplyParentalControls ? filter.ParentalDataFor : null,
+            GameCaseData.CurrentSettings(Plugin.Instance!.ConfigurationFilePath)), id);
+
+    /// <summary>The path of a case part (front|back|spine|disc|logo) of a version when <paramref name="tag"/> equals the file's tag; null otherwise. No user check: the tag binds the file.</summary>
+    public static string? GameCasePart(Guid id, string part, string tag) =>
+        Answer<string?>(null, (filter, data) => ArtworkPlusLinkCore.CasePartTagged(data, filter.Images(), id, part, tag), id);
+
     /// <summary>True for the id of a collection (a series with games in at least two groups) of the current game data; false for a game, a library or any other id.</summary>
     public static bool IsCollection(Guid id) =>
         Answer(false, (_, data) => ArtworkPlusLinkCore.IsCollection(data, id), id);
@@ -175,6 +188,62 @@ public static class ArtworkPlusLinkCore
     public static string[][] Backdrops(GameData data, ImageCache images, Guid id) => Game(data, id) is GameHit hit
         ? VirtualItemsFilter.TaggedBackdrops(images, hit.Group!, hit.Game!).Select(b => new[] { b.Path, b.Tag }).ToArray()
         : Array.Empty<string[]>();
+
+    /// <summary>The file of a case part (front, back, spine, disc = first distinct disc, logo = the game's Logo) of a version; null without one or for any other part or id.</summary>
+    public static string? CasePart(GameData data, ImageCache images, Guid id, string? part)
+    {
+        if (Game(data, id) is not GameHit hit)
+        {
+            return null;
+        }
+
+        return part switch
+        {
+            "front" => images.Box(hit.Game!, "boxfront"),
+            "back" => images.Box(hit.Game!, "boxback"),
+            "spine" => images.Box(hit.Game!, "boxspine"),
+            "disc" => images.DistinctDiscs(hit.Group!, hit.Game!).FirstOrDefault(),
+            "box3d" => images.Box(hit.Game!, "box3d"),
+            "logo" => VirtualItemsFilter.TaggedImage(images, hit.Group!, hit.Game!, ImageType.Logo) is var (path, _) ? path : null,
+            _ => null
+        };
+    }
+
+    /// <summary>The path when <paramref name="tag"/> is the file's current tag (so a changed file needs a new tag); null for no path, an empty or a wrong tag.</summary>
+    public static string? TaggedPath(string? path, string? tag) =>
+        path is not null && !string.IsNullOrEmpty(tag) && string.Equals(ImageCache.Tag(path), tag, StringComparison.Ordinal) ? path : null;
+
+    /// <summary>The file of a case part when the tag is right (<see cref="CasePart"/> + <see cref="TaggedPath"/>).</summary>
+    public static string? CasePartTagged(GameData data, ImageCache images, Guid id, string? part, string? tag) => TaggedPath(CasePart(data, images, id, part), tag);
+
+    /// <summary>"box", "disc" or "" (no case: front or back missing) of a version, as <see cref="GameCase"/> decides, without the user check (the caller has already limited the versions).</summary>
+    public static string CaseKind(GameData data, ImageCache images, Guid id, GameCaseData.Settings settings)
+    {
+        if (Game(data, id) is not GameHit hit)
+        {
+            return string.Empty;
+        }
+
+        var game = hit.Game!;
+        var rows = GameCaseData.Build(game.Name, game.Platforms, game.Year, null, null, images.GameFolder(game),
+            CasePart(data, images, id, "front"), CasePart(data, images, id, "back"), CasePart(data, images, id, "spine"), null, null, settings, _ => null);
+        return rows.FirstOrDefault(r => r[0] == "kind")?[1] ?? string.Empty;
+    }
+
+    /// <summary>The rows of <see cref="ArtworkPlusLink.GameCase"/>; empty unless the user may see the game (as <see cref="IsVisibleTo"/>) and front and back exist.</summary>
+    public static string[][] GameCase(GameData data, ImageCache images, Guid id, Guid userId, Func<Guid, User?> visibleUser, Func<User, GameData, GameData>? parental,
+        GameCaseData.Settings settings)
+    {
+        if (!IsVisibleTo(data, id, userId, visibleUser, parental) || Game(data, id) is not GameHit hit)
+        {
+            return Array.Empty<string[]>();
+        }
+
+        var game = hit.Game!;
+        return GameCaseData.Build(game.Name, game.Platforms, game.Year, game.Publishers, game.Developers, images.GameFolder(game),
+            CasePart(data, images, id, "front"), CasePart(data, images, id, "back"), CasePart(data, images, id, "spine"),
+            CasePart(data, images, id, "disc"), CasePart(data, images, id, "logo"), settings, ImageCache.Tag);
+    }
 
     /// <summary>The collection hit of <paramref name="id"/> in <paramref name="data"/>; null for Guid.Empty and any id that is no collection.</summary>
     public static GameCollection? Collection(GameData data, Guid id) => id != Guid.Empty && data.Find(id) is { Kind: GameHitKind.Collection } hit ? hit.Collection : null;

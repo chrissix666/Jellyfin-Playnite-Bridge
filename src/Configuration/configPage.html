@@ -632,6 +632,10 @@
                 <div id="pbArtPosterBody" class="pbCollapseBody pbArtBody" hidden></div>
             </div>
             <div class="pbCollapse">
+                <button type="button" class="pbCollapseHeader" aria-expanded="false" aria-controls="pbArtBox3dBody"><span class="pbChevron" aria-hidden="true">&#9654;</span><span>Box 3D</span></button>
+                <div id="pbArtBox3dBody" class="pbCollapseBody pbArtBody" hidden></div>
+            </div>
+            <div class="pbCollapse">
                 <button type="button" class="pbCollapseHeader" aria-expanded="false" aria-controls="pbArtLogoArtBody"><span class="pbChevron" aria-hidden="true">&#9654;</span><span>LogoArt</span></button>
                 <div id="pbArtLogoArtBody" class="pbCollapseBody pbArtBody" hidden></div>
             </div>
@@ -650,6 +654,10 @@
             <div class="pbCollapse">
                 <button type="button" class="pbCollapseHeader" aria-expanded="false" aria-controls="pbArtBackdropsCollectionBody"><span class="pbChevron" aria-hidden="true">&#9654;</span><span>Backdrops: Collection View</span></button>
                 <div id="pbArtBackdropsCollectionBody" class="pbCollapseBody pbArtBody" hidden></div>
+            </div>
+            <div class="pbCollapse" id="pbCaseCollapse" hidden>
+                <button type="button" class="pbCollapseHeader" aria-expanded="false" aria-controls="pbArtCaseBody"><span class="pbChevron" aria-hidden="true">&#9654;</span><span>Three.js Case</span></button>
+                <div id="pbArtCaseBody" class="pbCollapseBody" hidden><div class="pbRow pbRowCheckbox pbFieldDisabled" id="pbCaseRow"><label for="pbCaseGamesTick">Three.js Case Games</label><div class="checkboxContainer"><label class="emby-checkbox-label"><input id="pbCaseGamesTick" type="checkbox" disabled><span class="pbDescInline">Set in ArtworkPlus under Case &gt; Three.js Case &gt; Three.js Case Games.</span></label></div></div></div>
             </div>
         </div>
     </div>
@@ -702,6 +710,8 @@
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ConnectionsNameSingleGroup" name="ConnectionsNameSingleGroup" type="checkbox"><span class="pbDescInline">With only one group in the row, the row takes that group's name instead of the Row Name.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbConnDividersRow"><label for="ConnectionsShowDividers">Show Dividers</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ConnectionsShowDividers" name="ConnectionsShowDividers" type="checkbox"><span class="pbDescInline">Separates the groups in the combined row with a divider, while off puts all tiles in one row.</span></label></div></div>
+        <div class="pbRow pbRowCheckbox" id="pbConnDividersAlwaysRow"><label for="ConnectionsShowDividersAlways">Show Dividers Always</label>
+            <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ConnectionsShowDividersAlways" name="ConnectionsShowDividersAlways" type="checkbox"><span class="pbDescInline">Also shows the divider for a single group, which needs Name a Single Group by Its Own Name off.</span></label></div></div>
         <div class="pbRow pbRowMerged" id="pbConnGroupOrderRow"><span class="pbRowLabelSpan">Group Order</span>
             <div class="pbOrderBox"><div id="ConnectionsGroupOrder" class="pbOrderList"></div></div>
             <div class="pbDesc">The order of the groups inside the Connections row.</div></div>
@@ -731,6 +741,8 @@
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="DocumentsKeepSlotsTogether" name="DocumentsKeepSlotsTogether" type="checkbox"><span class="pbDescInline">In a merged row it keeps each slot's files together, while off sorts all files together.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbDocDividersRow"><label for="DocumentsShowDividers">Show Dividers</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="DocumentsShowDividers" name="DocumentsShowDividers" type="checkbox"><span class="pbDescInline">Separates the slots of a merged row with a divider, which needs Keep Slots Together.</span></label></div></div>
+        <div class="pbRow pbRowCheckbox" id="pbDocDividersAlwaysRow"><label for="DocumentsShowDividersAlways">Show Dividers Always</label>
+            <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="DocumentsShowDividersAlways" name="DocumentsShowDividersAlways" type="checkbox"><span class="pbDescInline">Shows the divider with the slot's name also when the merged row has only one slot.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbDocTitleRow"><label for="DocumentsShowTitle">Show Title</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="DocumentsShowTitle" name="DocumentsShowTitle" type="checkbox"><span class="pbDescInline">Shows the file name under each tile.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbDocSubtextRow"><label for="DocumentsShowSubtext">Show Subtext</label>
@@ -775,6 +787,8 @@
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="WallpapersKeepSlotsTogether" name="WallpapersKeepSlotsTogether" type="checkbox"><span class="pbDescInline">In a merged row it keeps each slot's files together, while off sorts all files together.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbWpDividersRow"><label for="WallpapersShowDividers">Show Dividers</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="WallpapersShowDividers" name="WallpapersShowDividers" type="checkbox"><span class="pbDescInline">Separates the slots of a merged row with a divider, which needs Keep Slots Together.</span></label></div></div>
+        <div class="pbRow pbRowCheckbox" id="pbWpDividersAlwaysRow"><label for="WallpapersShowDividersAlways">Show Dividers Always</label>
+            <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="WallpapersShowDividersAlways" name="WallpapersShowDividersAlways" type="checkbox"><span class="pbDescInline">Shows the divider with the slot's name also when the merged row has only one slot.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbWpTitleRow"><label for="WallpapersShowTitle">Show Title</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="WallpapersShowTitle" name="WallpapersShowTitle" type="checkbox"><span class="pbDescInline">Shows the file name under each picture.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbWpSubtextRow"><label for="WallpapersShowSubtext">Show Subtext</label>
@@ -820,6 +834,8 @@
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ScreenshotsKeepSlotsTogether" name="ScreenshotsKeepSlotsTogether" type="checkbox"><span class="pbDescInline">In a merged row it keeps each slot's files together, while off sorts all files together.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbShotDividersRow"><label for="ScreenshotsShowDividers">Show Dividers</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ScreenshotsShowDividers" name="ScreenshotsShowDividers" type="checkbox"><span class="pbDescInline">Separates the slots of a merged row with a divider, which needs Keep Slots Together.</span></label></div></div>
+        <div class="pbRow pbRowCheckbox" id="pbShotDividersAlwaysRow"><label for="ScreenshotsShowDividersAlways">Show Dividers Always</label>
+            <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ScreenshotsShowDividersAlways" name="ScreenshotsShowDividersAlways" type="checkbox"><span class="pbDescInline">Shows the divider with the slot's name also when the merged row has only one slot.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbShotTitleRow"><label for="ScreenshotsShowTitle">Show Title</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ScreenshotsShowTitle" name="ScreenshotsShowTitle" type="checkbox"><span class="pbDescInline">Shows the file name under each picture.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbShotSubtextRow"><label for="ScreenshotsShowSubtext">Show Subtext</label>
@@ -870,6 +886,8 @@
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="VideosKeepSlotsTogether" name="VideosKeepSlotsTogether" type="checkbox"><span class="pbDescInline">In the merged row each row stays together in arrow order, else the videos are sorted by Videos Sort.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbVideosDividersRow"><label for="VideosShowDividers">Show Dividers</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="VideosShowDividers" name="VideosShowDividers" type="checkbox"><span class="pbDescInline">Separates the Steam and local videos of the merged row, and with Keep Slots Together the types too.</span></label></div></div>
+        <div class="pbRow pbRowCheckbox" id="pbVideosDividersAlwaysRow"><label for="VideosShowDividersAlways">Show Dividers Always</label>
+            <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="VideosShowDividersAlways" name="VideosShowDividersAlways" type="checkbox"><span class="pbDescInline">Shows the divider with the name also when the merged row has only one source or type.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbShowTitleRow"><label for="ShowTitle">Show Title</label>
             <div class="checkboxContainer"><label class="emby-checkbox-label"><input id="ShowTitle" name="ShowTitle" type="checkbox"><span class="pbDescInline">Shows the name of a special feature under its picture.</span></label></div></div>
         <div class="pbRow pbRowCheckbox" id="pbShowSubtextRow"><label for="ShowSubtext">Show Subtext</label>
@@ -1143,6 +1161,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         ConnectionsCastOwnName: { type: 'text', tab: 'extras', def: '' },
         ConnectionsNameSingleGroup: { type: 'checkbox', tab: 'extras', def: true },
         ConnectionsShowDividers: { type: 'checkbox', tab: 'extras', def: true },
+        ConnectionsShowDividersAlways: { type: 'checkbox', tab: 'extras', def: false },
         ConnectionsName: { type: 'select', tab: 'extras', def: 'Connections' },
         ConnectionsOwnName: { type: 'text', tab: 'extras', def: '' },
         ConnectionsGroupOrder: { type: 'keyorder', tab: 'extras', def: 'series,media,cast' },
@@ -1170,6 +1189,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         ScreenshotsDisplay: { type: 'select', tab: 'extras', def: 'Adaptive' },
         ScreenshotsKeepSlotsTogether: { type: 'checkbox', tab: 'extras', def: true },
         ScreenshotsShowDividers: { type: 'checkbox', tab: 'extras', def: false },
+        ScreenshotsShowDividersAlways: { type: 'checkbox', tab: 'extras', def: false },
         ScreenshotsTileShape: { type: 'select', tab: 'extras', def: 'Landscape' },
         ScreenshotsPictureFit: { type: 'select', tab: 'extras', def: 'Adaptive' },
         ScreenshotsCropLimitPercent: { type: 'number', tab: 'extras', def: 20 },
@@ -1230,6 +1250,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         DocumentsDisplay: { type: 'select', tab: 'extras', def: 'Adaptive' },
         DocumentsKeepSlotsTogether: { type: 'checkbox', tab: 'extras', def: true },
         DocumentsShowDividers: { type: 'checkbox', tab: 'extras', def: false },
+        DocumentsShowDividersAlways: { type: 'checkbox', tab: 'extras', def: false },
         DocumentsPictureFit: { type: 'select', tab: 'extras', def: 'Adaptive' },
         DocumentsCropLimitPercent: { type: 'number', tab: 'extras', def: 20 },
         DocumentsGenerateThumbnails: { type: 'checkbox', tab: 'extras', def: true },
@@ -1290,6 +1311,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         WallpapersDisplay: { type: 'select', tab: 'extras', def: 'Adaptive' },
         WallpapersKeepSlotsTogether: { type: 'checkbox', tab: 'extras', def: true },
         WallpapersShowDividers: { type: 'checkbox', tab: 'extras', def: false },
+        WallpapersShowDividersAlways: { type: 'checkbox', tab: 'extras', def: false },
         WallpapersTileShape: { type: 'select', tab: 'extras', def: 'Landscape' },
         WallpapersPictureFit: { type: 'select', tab: 'extras', def: 'Adaptive' },
         WallpapersCropLimitPercent: { type: 'number', tab: 'extras', def: 20 },
@@ -1347,6 +1369,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         ArtworkSettingsFrom: { type: 'select', tab: 'artwork', def: 'ArtworkPlus' },
         ArtPosterSizePercent: { type: 'number', tab: 'artwork', def: 100 },
         ArtPosterAnchor: { type: 'select', tab: 'artwork', def: 'Default' },
+        ArtPosterBox3dEnabled: { type: 'checkbox', tab: 'artwork', def: false },
+        ArtPosterBox3dSizePercent: { type: 'number', tab: 'artwork', def: 100 },
+        ArtPosterBox3dAnchor: { type: 'select', tab: 'artwork', def: 'Default' },
         ArtLogoArtSource: { type: 'select', tab: 'artwork', def: 'VanillaLogo' },
         ArtLogoArtFallback: { type: 'select', tab: 'artwork', def: 'None' },
         ArtLogoArtSecondFallback: { type: 'select', tab: 'artwork', def: 'None' },
@@ -1726,6 +1751,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         SteamSpecialFeaturesTitle: { type: 'select', tab: 'extras', def: '' },
         SteamSpecialFeaturesLabel: { type: 'text', tab: 'extras', def: '' },
         VideosShowDividers: { type: 'checkbox', tab: 'extras', def: false },
+        VideosShowDividersAlways: { type: 'checkbox', tab: 'extras', def: false },
         SteamSpecialsMerge: { type: 'checkbox', tab: 'extras', def: false },
         VideosDisplay: { type: 'select', tab: 'extras', def: 'Merged' },
         VideosKeepSlotsTogether: { type: 'checkbox', tab: 'extras', def: false },
@@ -2753,6 +2779,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         + artSelectRow('ArtPosterAnchor', 'Anchor', [['Default', 'Default'], ['TopLeft', 'Top Left'], ['TopCenter', 'Top Center'], ['TopRight', 'Top Right'],
             ['CenterLeft', 'Center Left'], ['Center', 'Center'], ['CenterRight', 'Center Right'], ['BottomLeft', 'Bottom Left'], ['BottomCenter', 'Bottom Center'],
             ['BottomRight', 'Bottom Right']], 'The place of a smaller poster inside the space of the full-size poster.');
+    $('pbArtBox3dBody').innerHTML = artCheckRow('ArtPosterBox3dEnabled', 'Show Box 3D', 'Shows the Box 3D picture of a game version in place of its poster.')
+        + artNumberRow('Box 3D Size', [['ArtPosterBox3dSizePercent', 'Box 3D Size', '%', 10, 200, 1]], 'The size of the Box 3D picture in percent of the size Jellyfin gives the poster.')
+        + artSelectRow('ArtPosterBox3dAnchor', 'Anchor', [['Default', 'Default'], ['TopLeft', 'Top Left'], ['TopCenter', 'Top Center'], ['TopRight', 'Top Right'],
+            ['CenterLeft', 'Center Left'], ['Center', 'Center'], ['CenterRight', 'Center Right'], ['BottomLeft', 'Bottom Left'], ['BottomCenter', 'Bottom Center'],
+            ['BottomRight', 'Bottom Right']], 'The place of a smaller Box 3D picture inside the space of the full-size poster.');
     $('pbArtLogoArtBody').innerHTML = artSelectRow('ArtLogoArtSource', 'Source', LOGO_STAGES.concat([['Hide', 'Hide']]), 'What the logo slot of a game page shows first.')
         + artSelectRow('ArtLogoArtFallback', 'Fallback', [['None', 'None']].concat(LOGO_STAGES), 'What the logo slot shows when the source has no image.')
         + artSelectRow('ArtLogoArtSecondFallback', 'Second Fallback', [['None', 'None']].concat(LOGO_STAGES), 'What the logo slot shows when the source and the fallback have no image.')
@@ -3082,10 +3113,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         span.title = text || '';
         button.style.opacity = text === null || grey ? '.5' : '';
     }
+    var caseGames = null;   // ArtworkPlus's CaseModThreejsGamesEnabled as read at load (null = not known: ArtworkPlus missing or without the setting)
     function indicators() {
         var word = function (id) { var o = $(id).options[$(id).selectedIndex]; return o ? o.textContent : ''; };
         var shown = {
             pbArtPosterBody: getField('ArtPosterSizePercent') < 100 ? getField('ArtPosterSizePercent') + ' %, ' + word('ArtPosterAnchor') : null,
+            pbArtBox3dBody: getField('ArtPosterBox3dEnabled') ? (getField('ArtPosterBox3dSizePercent') < 100 ? getField('ArtPosterBox3dSizePercent') + ' %, ' + word('ArtPosterBox3dAnchor') : 'On') : null,
             pbArtLogoArtBody: getField('ArtLogoArtSource') === 'Hide' ? null : word('ArtLogoArtSource'),
             pbArtCharacterArtBody: getField('ArtCharacterArtShow') ? word('ArtCharacterArtPosition') : null,
             pbArtBackdropsDetailBody: getField('ArtBackdropsDetailShow') ? 'On' : null,
@@ -3094,6 +3127,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         };
         // greyed with their values while ArtworkPlus manages the Display block, as the Player Artwork headers while VideoOSD manages them
         Object.keys(shown).forEach(function (id) { var button = page.querySelector('[aria-controls="' + id + '"]'); if (button) sectSummary(button, shown[id], artManaged); });
+        // Three.js Case (read only): "On" while ArtworkPlus draws 3D cases for games, "Off" greyed while it does not; the whole section is hidden without ArtworkPlus or without its setting
+        var caseButton = page.querySelector('[aria-controls="pbArtCaseBody"]');
+        if (caseButton && caseGames !== null) sectSummary(caseButton, caseGames ? 'On' : 'Off', !caseGames);
         // Player Artwork: a layer while it is on shows its Source Mode (not Default), its position and, for the Disc, Spinning; the section header
         // lists the layers that are on, or Off; greyed with their values while VideoOSD manages them, a layer also while Player Artwork is off
         var playerOn = getField('PlayerArtEnabled'), layersOn = [];
@@ -3158,6 +3194,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             return { blocked: blocked, on: !blocked && (onBox ? onBox.checked : true), merge: row.querySelector('.pbSlotMerge').checked, wholeRow: noGames };
         };
         var anyMerged = rows.some(function (row) { var st = state(row); return st.on && st.merge; });
+        var localMerged = rows.filter(function (row) { var st = state(row); return row.dataset.key !== 'steam' && st.on && st.merge; }).length;
         var merging = display !== 'OneRowPerSlot' && anyMerged, mergedRow = flat || merging, titleOff = a.titleBlocked ? a.titleBlocked() : false;
         fade($(a.ids.display), flat);
         fade($(a.ids.head), flat);
@@ -3165,6 +3202,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         fade($(a.ids.titleRow), off || !mergedRow || titleOff);
         fade($(a.ids.labelRow), off || !mergedRow || titleOff || getField(a.title) !== 'Own');
         fade($(a.ids.dividers), flat || !merging || (a.dividersNeedKeep && !getField(a.keep)));
+        fade($(a.ids.dividersAlways), flat || !merging || (a.dividersNeedKeep && !getField(a.keep)) || !getField(a.dividersField) || (getField(a.display) === 'Adaptive' && (a.dividersNeedKeep || getField(a.keep) || localMerged < 2)));
         // Picture Fit acts with the area (also with Flat); the Crop Limit only with Adaptive
         // Tile Shape and Picture Fit rows are greyed with the area off by the chapter fade of the master switches below (they sit in the chapter body)
         if (a.ids.crop) fade($(a.ids.crop), off || getField(a.fit) !== 'Adaptive');
@@ -3182,17 +3220,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if (a.extra) a.extra(merging);
     }
     var AREAS = [
-        { on: 'EnableScreenshots', flat: 'ScreenshotsFlat', display: 'ScreenshotsDisplay', keep: 'ScreenshotsKeepSlotsTogether', title: 'ScreenshotsTitle', fit: 'ScreenshotsPictureFit', rows: slotRows, dividersNeedKeep: true,
-            ids: { crop: 'pbShotCropLimitRow', display: 'pbShotDisplayRow', head: 'pbShotSlotHead', keep: 'pbShotKeepRow', titleRow: 'pbScreenshotsTitleRow', labelRow: 'pbScreenshotsLabelRow', dividers: 'pbShotDividersRow' } },
-        { on: 'EnableDocuments', flat: 'DocumentsFlat', display: 'DocumentsDisplay', keep: 'DocumentsKeepSlotsTogether', title: 'DocumentsTitle', fit: 'DocumentsPictureFit', rows: docSlotRows, dividersNeedKeep: true,
-            ids: { crop: 'pbDocCropLimitRow', display: 'pbDocDisplayRow', head: 'pbDocSlotHead', keep: 'pbDocKeepRow', titleRow: 'pbDocumentsTitleRow', labelRow: 'pbDocumentsLabelRow', dividers: 'pbDocDividersRow' } },
-        { on: 'EnableWallpapers', flat: 'WallpapersFlat', display: 'WallpapersDisplay', keep: 'WallpapersKeepSlotsTogether', title: 'WallpapersTitle', fit: 'WallpapersPictureFit', rows: wpSlotRows, dividersNeedKeep: true,
-            ids: { crop: 'pbWpCropLimitRow', display: 'pbWpDisplayRow', head: 'pbWpSlotHead', keep: 'pbWpKeepRow', titleRow: 'pbWallpapersTitleRow', labelRow: 'pbWallpapersLabelRow', dividers: 'pbWpDividersRow' } },
+        { on: 'EnableScreenshots', flat: 'ScreenshotsFlat', display: 'ScreenshotsDisplay', keep: 'ScreenshotsKeepSlotsTogether', title: 'ScreenshotsTitle', dividersField: 'ScreenshotsShowDividers', fit: 'ScreenshotsPictureFit', rows: slotRows, dividersNeedKeep: true,
+            ids: { crop: 'pbShotCropLimitRow', display: 'pbShotDisplayRow', head: 'pbShotSlotHead', keep: 'pbShotKeepRow', titleRow: 'pbScreenshotsTitleRow', labelRow: 'pbScreenshotsLabelRow', dividers: 'pbShotDividersRow', dividersAlways: 'pbShotDividersAlwaysRow' } },
+        { on: 'EnableDocuments', flat: 'DocumentsFlat', display: 'DocumentsDisplay', keep: 'DocumentsKeepSlotsTogether', title: 'DocumentsTitle', dividersField: 'DocumentsShowDividers', fit: 'DocumentsPictureFit', rows: docSlotRows, dividersNeedKeep: true,
+            ids: { crop: 'pbDocCropLimitRow', display: 'pbDocDisplayRow', head: 'pbDocSlotHead', keep: 'pbDocKeepRow', titleRow: 'pbDocumentsTitleRow', labelRow: 'pbDocumentsLabelRow', dividers: 'pbDocDividersRow', dividersAlways: 'pbDocDividersAlwaysRow' } },
+        { on: 'EnableWallpapers', flat: 'WallpapersFlat', display: 'WallpapersDisplay', keep: 'WallpapersKeepSlotsTogether', title: 'WallpapersTitle', dividersField: 'WallpapersShowDividers', fit: 'WallpapersPictureFit', rows: wpSlotRows, dividersNeedKeep: true,
+            ids: { crop: 'pbWpCropLimitRow', display: 'pbWpDisplayRow', head: 'pbWpSlotHead', keep: 'pbWpKeepRow', titleRow: 'pbWallpapersTitleRow', labelRow: 'pbWallpapersLabelRow', dividers: 'pbWpDividersRow', dividersAlways: 'pbWpDividersAlwaysRow' } },
         // Videos: the types and own slots need Enable Special Features; the dividers of the merged row do not need Keep Slots Together (the Steam / local boundary is always drawn); the merged row's title
         // is the local special features', so it needs Enable Special Features; the arrows of the merged rows follow Keep Slots Together; the cards' camera, title and subtext need a source
-        { on: 'EnableVideos', display: 'VideosDisplay', keep: 'VideosKeepSlotsTogether', title: 'SpecialFeaturesTitle', rows: videoSlotRows, dividersNeedKeep: false,
+        { on: 'EnableVideos', display: 'VideosDisplay', keep: 'VideosKeepSlotsTogether', title: 'SpecialFeaturesTitle', dividersField: 'VideosShowDividers', rows: videoSlotRows, dividersNeedKeep: false,
             titleBlocked: function () { return !getField('EnableExtras'); },
-            ids: { display: 'pbVideosDisplayRow', head: 'pbVideoSlotHead', keep: 'pbVideosKeepRow', titleRow: 'pbSpecialsTitleRow', labelRow: 'pbSpecialsLabelRow', dividers: 'pbVideosDividersRow' },
+            ids: { display: 'pbVideosDisplayRow', head: 'pbVideoSlotHead', keep: 'pbVideosKeepRow', titleRow: 'pbSpecialsTitleRow', labelRow: 'pbSpecialsLabelRow', dividers: 'pbVideosDividersRow', dividersAlways: 'pbVideosDividersAlwaysRow' },
             extra: function () {
                 videoOrderButtons();
                 var noCards = !getField('EnableExtras') && !getField('EnableSteamSpecialFeatures');
@@ -3222,6 +3260,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         fade($('pbConnSingleRow'), !inRow);
         fade($('pbConnGroupOrderRow'), !inRow);
         fade($('pbConnDividersRow'), !inRow);
+        fade($('pbConnDividersAlwaysRow'), !inRow || !getField('ConnectionsShowDividers') || getField('ConnectionsNameSingleGroup'));
     }
     function deps() {
         applySources();
@@ -3470,12 +3509,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     // OSD & Artwork: every row greyed while ArtworkPlus is active (values kept), else the rows without effect as in ArtworkPlus
     function artDeps() {
         page.querySelectorAll('.pbArtBody:not(#pbPlayerArtBody) .pbRow').forEach(function (row) { fade(row, artManaged); });
+        fade($('pbCaseRow'), true);   // Three.js Case: read only, the tick shows ArtworkPlus's switch and is never writable
         var off = function (id, inactive) {
             if (inactive) fade($(id).closest('.pbRow'), true);
             // a greyed dependent tick shows unticked and keeps the chosen value; rows that show ArtworkPlus's values keep them
             if (wanted.hasOwnProperty(id) && !artManaged) dependent(id, inactive);
         };
         off('ArtPosterAnchor', getField('ArtPosterSizePercent') >= 100);
+        off('ArtPosterBox3dSizePercent', !getField('ArtPosterBox3dEnabled'));
+        off('ArtPosterBox3dAnchor', !getField('ArtPosterBox3dEnabled') || getField('ArtPosterBox3dSizePercent') >= 100);
         var source = getField('ArtLogoArtSource'), fallback = getField('ArtLogoArtFallback');
         var chain = logoChain([source, fallback, getField('ArtLogoArtSecondFallback')]);
         off('ArtLogoArtFallback', source === 'Hide');
@@ -3965,6 +4007,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             ownValues = {};
             artInstalled = active(ARTWORKPLUS_ID);
             apMirror = artInstalled ? r[6] : null;
+            // read-only: whether ArtworkPlus draws 3D cases for games (hidden without ArtworkPlus or without its property)
+            var caseKnown = !!(apMirror && typeof apMirror.CaseModThreejsGamesEnabled === 'boolean');
+            $('pbCaseCollapse').hidden = !caseKnown;
+            caseGames = caseKnown ? !!apMirror.CaseModThreejsGamesEnabled : null;
+            $('pbCaseGamesTick').checked = caseGames === true;
             var osdKnown = showOsdStatus(active(VIDEOOSD_ID));
             // Credits: the own version (listed in the same answer); "installed" = Active, as the OSD & Artwork tab detects it
             var listed = function (id) { return r[5].filter(function (p) { return String(p.Id).replace(/-/g, '').toLowerCase() === id; })[0]; };

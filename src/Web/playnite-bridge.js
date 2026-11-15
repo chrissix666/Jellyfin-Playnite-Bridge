@@ -83,6 +83,8 @@
         '.pbVersionMarker>.mediaSourceIndicator{position:static;margin-right:0.2em}' +
         '.pbVersionMarker>.mediaSourceIndicator:last-child{margin-right:0}' +
         '.pbVersionMarker img{width:1.3em;height:1.3em;object-fit:contain}' +
+        // No marker on the detail picture while ArtworkPlus draws Box 3D (BOX3D_CSS below is only loaded when the Bridge draws it, so this must live here).
+        '#itemDetailPage.pbGame.artworkplus-box3d:not(.pbCase) .detailImageContainer .pbVersionMarker{display:none !important}' +
         // Top right beside Jellyfin's played check mark (pbBesidePlayed): the marker ends one icon gap left of it. Sizes are in em of the image
         // container; the number badge has an 88% font, hence the division by 0.88.
         '.pbBesidePlayed>.pbVersionMarker.pbTopRight{top:calc(0.225em + 0.8em - 0.88em);right:calc(0.225em + 1.6em + 0.176em)}' +
@@ -1099,7 +1101,11 @@
         }
         var hash = '#/details?id=' + encodeURIComponent(id) + '&serverId='
             + encodeURIComponent(routeParam('details', 'serverId') || window.ApiClient.serverId());
-        if (inPlaceBroken || !switchInPlace(view, id, hash, true)) {
+        // A switch that involves a 3D case or a Box 3D picture is drawn at once (no held picture, no overlay): the old picture goes, the new one fades in.
+        // ArtworkPlus tries a case again at every switch: the target version's old failed / none does not decide this pick
+        delete caseState[plainId(id)];
+        var atOnce = pickShowsCase(view, id);
+        if (inPlaceBroken || !switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id))) {
             window.location.replace(hash);
         }
     }
@@ -1971,7 +1977,7 @@
     // viewshow, so the id is replaced there, the URL follows without a router event, and the view gets the viewbeforehide/viewshow pair it would get
     // between two visits. False: no params object (the caller navigates). held: a pick drawn under holdSwitch; a page left before the transition's
     // callback keeps its id and URL.
-    function switchInPlace(view, id, hash, held) {
+    function switchInPlace(view, id, hash, held, atOnce, apMayDraw) {
         var params = view.pbParams;
         if (!params || typeof params.id !== 'string' || !view.isConnected) {
             return false;
@@ -2011,6 +2017,9 @@
                 }
                 return;
             }
+            if (atOnce) {
+                removeGhost(true);
+            }
             view.pbInPlace = true;
             view.pbArtKeep = true;
             view.pbShownGen = gen;
@@ -2020,6 +2029,10 @@
             window.history.replaceState(firstState(view.pbFirst, id.replace(/-/g, '').toLowerCase()), '', hash);
             view.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: { type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen } }));
             view.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: { type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen } }));
+            if (atOnce) {
+                // No held picture to release: ArtworkPlus gets the signal of the switch right after the viewshow.
+                document.dispatchEvent(new CustomEvent('pb:switchrelease', { detail: { id: id.replace(/-/g, '').toLowerCase(), first: view.pbFirst, generation: gen, atOnce: true, apMayDraw: !!apMayDraw } }));
+            }
         };
         if (held) {
             holdSwitch(view, show);
@@ -3665,7 +3678,7 @@
         return '<div class="pbConnGroup ' + extra + '" role="presentation"><span title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</span></div>';
     }
 
-    // Show Dividers of the merged row: the answer of games/{id}/screenshots names the slots (slotNames) only for a merged row with its slots together and more than one slot; previous =
+    // Show Dividers of the merged row: the answer of games/{id}/screenshots names the slots (slotNames) only for a merged row with its slots together and more than one slot (one slot too with Show Dividers Always); previous =
     // the slot of the tile before the first one given (null at the start of the row).
     function shotDivide(row, dictionary, previous) {
         return row.slotNames ? { names: row.slotNames, dictionary: dictionary, previous: previous } : null;
@@ -4566,7 +4579,7 @@
                 holder.innerHTML = groupDivider(label, 'pbSpecialGroup');
                 container.insertBefore(holder.firstChild, before);
             };
-            // the Steam / local boundary whenever both are there (not bound to Keep Slots Together); with it a divider named like the row before each run of one type or slot
+            // the Steam / local boundary whenever both are there, or with Show Dividers Always whenever one kind is there (not bound to Keep Slots Together); with it a divider named like the row before each run of one type or slot
             // (then the first local run is named by its own row, else by the Special Features title)
             var runStarts = [], lastRun = null;
             cards.forEach(function (card) {
@@ -4580,12 +4593,14 @@
                     lastRun = run;
                 }
             });
-            var boundary = !!(firstLocal && firstSteam);
+            var boundary = !!(firstLocal && firstSteam) || (state.always && !!(firstLocal || firstSteam));
             if (boundary) {
-                if (!state.keep) {
+                if (!state.keep && firstLocal) {
                     put(state.localLabel, firstLocal);
                 }
-                put(state.steamLabel, firstSteam);
+                if (firstSteam) {
+                    put(state.steamLabel, firstSteam);
+                }
             }
             if (state.keep && (boundary || runStarts.length > 1)) {
                 runStarts.forEach(function (start) {
@@ -4680,7 +4695,7 @@
                     runs[cardId] = { run: card.run, label: card.label || videoRowTitle({ key: card.run, label: '' }, dictionary) };
                 }
             });
-            view.pbSpecialsDividers = { steam: steam, runs: runs, keep: !!configuration.VideosKeepSlotsTogether, localLabel: labelOptions.specials || translate(dictionary, 'SpecialFeatures') || 'Special Features', steamLabel: steamLabelText || translate(dictionary, 'SteamSpecialFeatures') || 'Steam Special Features' };
+            view.pbSpecialsDividers = { steam: steam, runs: runs, keep: !!configuration.VideosKeepSlotsTogether, always: !!configuration.VideosShowDividersAlways, localLabel: labelOptions.specials || translate(dictionary, 'SpecialFeatures') || 'Special Features', steamLabel: steamLabelText || translate(dictionary, 'SteamSpecialFeatures') || 'Steam Special Features' };
             if (!view.pbSpecialsObserver) {
                 view.pbSpecialsObserver = new MutationObserver(function () {
                     applySpecialsDividers(view);
@@ -4879,7 +4894,7 @@
             mediaOwnName: c.MediaOwnName || '',
             castName: c.CastName || 'CastAndCrew',
             castOwnName: c.CastOwnName || '',
-            dividers: c.ConnectionsShowDividers !== false,
+            dividers: c.ConnectionsShowDividers !== false ? (c.ConnectionsShowDividersAlways && c.ConnectionsNameSingleGroup === false ? 'always' : true) : false,
             singleName: c.ConnectionsNameSingleGroup !== false,
             groupOrder: list(c.GroupOrder, ['series', 'media', 'cast']),
             mediaOrder: list(c.MediaOrder, ['collections', 'movies', 'tvshows'])
@@ -4918,11 +4933,11 @@
             : translate(dictionary, 'Connections' + conn.name) || conn.name;
     }
 
-    // The groups of the shared row [{ key, label, items | entries }]: a thin divider with the group's name before each group when there are several.
+    // The groups of the shared row [{ key, label, items | entries }]: a thin divider with the group's name before each group when there are several, or before a single one with Show Dividers Always.
     function connectionsCards(groups, dictionary, gameId, dividers) {
         return groups.map(function (group) {
             var cards = group.key === 'series' ? collectionCards(group.items) : nfoCards(group.entries, dictionary, gameId);
-            return (dividers && groups.length > 1 ? '<div class="pbConnGroup" role="presentation"><span title="' + escapeHtml(group.label) + '">' + escapeHtml(group.label) + '</span></div>' : '') + cards;
+            return (dividers && (dividers === 'always' || groups.length > 1) ? '<div class="pbConnGroup" role="presentation"><span title="' + escapeHtml(group.label) + '">' + escapeHtml(group.label) + '</span></div>' : '') + cards;
         }).join('');
     }
 
@@ -5056,11 +5071,80 @@
     var itemKinds = {};
     var kindWaiters = {};
 
+    // ids certainly known as games (a virtual movie of the games library, or a tile of the games views), kept across page loads (localStorage, at most 4000)
+    // so that window.PlayniteBridge.isGame can answer without a request when a game page opens.
+    var KNOWN_GAMES_KEY = 'pbKnownGames';
+    var knownGames = null;
+    var knownGamesTimer = 0;
+
+    function knownGameSet() {
+        if (!knownGames) {
+            knownGames = {};
+            try {
+                (JSON.parse(window.localStorage.getItem(KNOWN_GAMES_KEY)) || []).forEach(function (key) {
+                    knownGames[key] = true;
+                });
+            } catch (e) {
+            }
+        }
+        return knownGames;
+    }
+
+    function saveKnownGames() {
+        clearTimeout(knownGamesTimer);
+        try {
+            window.localStorage.setItem(KNOWN_GAMES_KEY, JSON.stringify(Object.keys(knownGameSet()).slice(-4000)));
+        } catch (e) {
+        }
+    }
+
+    function rememberGame(id) {
+        var key = String(id).replace(/-/g, '').toLowerCase();
+        var set = knownGameSet();
+        if (set[key] || notGames[key]) {
+            return;
+        }
+        set[key] = true;
+        clearTimeout(knownGamesTimer);
+        knownGamesTimer = setTimeout(saveKnownGames, 1000);
+    }
+
+    // a key that turned out to be no game (the item's own answer says so) is taken back at once
+    function forgetGame(id) {
+        var key = String(id).replace(/-/g, '').toLowerCase();
+        if (knownGameSet()[key]) {
+            delete knownGames[key];
+            clearTimeout(knownGamesTimer);
+            knownGamesTimer = setTimeout(saveKnownGames, 1000);
+        }
+    }
+
+    // the debounced write must not be lost when the tab closes
+    window.addEventListener('pagehide', function () {
+        if (knownGamesTimer) {
+            saveKnownGames();
+        }
+    });
+
+    // true: the id is a game of the games library; false: it is certainly no game; null: not known (yet). Answers at once, without a request.
+    window.PlayniteBridge = window.PlayniteBridge || {};
+    window.PlayniteBridge.isGame = function (id) {
+        var key = String(id || '').replace(/-/g, '').toLowerCase();
+        if (notGames[key]) {
+            return false;
+        }
+        return knownGameSet()[key] ? true : null;
+    };
+
     function noteItemKind(id, mayBeGame) {
         var key = String(id).replace(/-/g, '').toLowerCase();
         itemKinds[key] = mayBeGame;
+        if (mayBeGame) {
+            rememberGame(key);
+        }
         if (!mayBeGame) {
             notGames[key] = true;
+            forgetGame(key);
         }
         (kindWaiters[key] || []).forEach(function (wake) {
             wake(mayBeGame);
@@ -5119,6 +5203,7 @@
                 return api.ajax({ type: 'GET', url: api.getUrl('PlayniteBridge/games/' + encodeURIComponent(id)) }).then(function (response) {
                     if (response && response.status === 204) {
                         notGames[key] = true;
+                        forgetGame(key);
                     }
                     return response && response.status === 200 ? response.json() : null;
                 });
@@ -5930,6 +6015,10 @@
         var gamesView = view.classList.contains('pbGames') || view.classList.contains('pbGamesList');
         for (var i = 0; i < tiles.length; i++) {
             var id = tiles[i].getAttribute('data-id');
+            // only real game tiles: not the trailers, collections or other items of a games view (data-type of the card)
+            if (gamesView && id && /^(Movie|Game)?$/.test(tiles[i].getAttribute('data-type') || '') && !tiles[i].closest('#trailersTab, #collectionsTab')) {
+                rememberGame(id);
+            }
             if (tiles[i].classList.contains('pbUninstalled') !== !!dimmed[id]) {
                 tiles[i].classList.toggle('pbUninstalled', !!dimmed[id]);
             }
@@ -7728,13 +7817,18 @@
     // The poster size as one rule per layout and card shape in Jellyfin's own units (25vw box on desktop and TV, 30vw from the bottom on mobile);
     // empty at 100 %. 12.1 draws the card relative and floated with other top values per layout, so its container takes the card's place and the same
     // size and anchor rules apply as on 10.10.7.
-    function posterCss(pct, anchor) {
+    // scope: what the rules are limited to on the page: the 2D poster gives way to a 3D case and to Box 3D (':not(.pbCase):not(.pbBox3d)'), Box 3D has
+    // its own size and anchor ('.pbBox3d:not(.pbCase)').
+    function posterCss(pct, anchor, scope) {
         if (pct === 100) {
             return '';
         }
+        // the poster's geometry rules (its container takes the card's place) stay on every game page, also with a case; only the size rules give way (Q12)
+        var geometryScope = scope ? scope : '';
+        scope = scope || ':not(.pbCase):not(.pbBox3d)';
         var f = pct / 100;
         var a = pct < 100 && POSTER_ANCHORS[anchor] || [0, 0];
-        var c = ' #itemDetailPage.pbGame .detailImageContainer.hide-mobile';
+        var c = ' #itemDetailPage.pbGame' + geometryScope + ' .detailImageContainer.hide-mobile';
         var geometry = '.layout-desktop' + c + ',.layout-tv' + c + '{position:relative;z-index:3}' +
             '.layout-desktop' + c + '{top:-12.96em}' +
             '.layout-desktop' + c + '>.card{top:0}' +
@@ -7744,7 +7838,7 @@
             '.layout-tv' + c + '>.card{top:0;transform:translateY(-50%)}' +
             '@media all and (max-width:62.5em){.layout-desktop' + c + '{top:0}}';
         return geometry + [['.layout-desktop', 25, false], ['.layout-tv', 25, false], ['.layout-mobile', 30, true]].map(function (lay) {
-            var root = lay[0] + ' #itemDetailPage.pbGame .detailImageContainer ';
+            var root = lay[0] + ' #itemDetailPage.pbGame' + scope + ' .detailImageContainer ';
             var css = root + '.card{width:' + lay[1] * f + 'vw;max-width:' + lay[1] * f + 'vw;margin-left:' + lay[1] * (1 - f) * a[0] + 'vw}';
             return css + [['', 1.5], ['.backdropCard', 0.5625], ['.squareCard', 1]].map(function (shape) {
                 var shift = lay[1] * shape[1] * (1 - f) * (lay[2] ? 1 - a[1] : a[1]);
@@ -7752,6 +7846,233 @@
             }).join('');
         }).join('');
     }
+
+    // ---- 3D case and Box 3D on game pages ----
+    // ArtworkPlus draws a 3D case for a version whose games/{id} entry has a caseKind (box | disc) while its head flags say so (games, gamesBox/gamesDisc) and
+    // as long as it has not told us otherwise (artworkplus:gamecase failed | none); then our 2D poster size rules stand down (class pbCase). Without a case, a
+    // version with a Box 3D picture shows it instead of the 2D poster when Box 3D is on (Settings From = Playnite Bridge: our own switch, size and anchor;
+    // ArtworkPlus draws it itself otherwise and says so in window.ArtworkPlusThreejs.box3d). Priority: case, Box 3D, 2D poster.
+    var caseState = {};          // version id -> the last artworkplus:gamecase state of this visit (shown | failed | none)
+
+    function plainId(id) {
+        return String(id || '').replace(/-/g, '').toLowerCase();
+    }
+
+    function versionOf(game, id) {
+        var key = plainId(id);
+        return ((game && game.versions) || []).filter(function (v) {
+            return v && typeof v.id === 'string' && plainId(v.id) === key;
+        })[0] || null;
+    }
+
+    // True while ArtworkPlus draws, or may still draw, a case for this version.
+    function caseActive(v) {
+        var t = window.ArtworkPlusThreejs;
+        if (!t || !t.games || !v || !v.caseKind) {
+            return false;
+        }
+        if ((v.caseKind === 'box' && t.gamesBox === false) || (v.caseKind === 'disc' && t.gamesDisc === false)) {
+            return false;
+        }
+        var state = caseState[plainId(v.id)];
+        return state !== 'failed' && state !== 'none';
+    }
+
+    // Whether the picture of a version's Box 3D is drawn at all: our own switch (Settings From = Playnite Bridge) or ArtworkPlus's (its head flag).
+    function box3dOn() {
+        var t = window.ArtworkPlusThreejs;
+        if (lastConfig && apDraws(lastConfig)) {
+            return !!(t && t.box3d);
+        }
+        return !!(lastConfig && lastConfig.Artwork && lastConfig.Artwork.ArtPosterBox3dEnabled);
+    }
+
+    // 'case', 'box3d' or '' (a plain 2D poster) for a version of a game answer.
+    function posterKind(game, id) {
+        var v = versionOf(game, id);
+        if (!v) {
+            return '';
+        }
+        if (caseActive(v)) {
+            return 'case';
+        }
+        return v.box3d && box3dOn() ? 'box3d' : '';
+    }
+
+    // True when ArtworkPlus may draw the poster place of a version: a case it is (still) allowed to build, or a Box 3D picture it draws itself (Settings From = ArtworkPlus).
+    function artworkPlusMayDraw(game, id) {
+        var v = versionOf(game, id);
+        var t = window.ArtworkPlusThreejs;
+        return !!v && (caseActive(v) || (!!v.box3d && !!t && !!t.box3d && !!lastConfig && apDraws(lastConfig)));
+    }
+
+    // A pick where ArtworkPlus may draw on either side of the switch (the old or the new version).
+    function pickMayBeArtworkPlus(view, id) {
+        return !!view.pbGame && (artworkPlusMayDraw(view.pbGame, view.pbVersion) || artworkPlusMayDraw(view.pbGame, id));
+    }
+
+    // A pick that involves a case or a Box 3D picture (the old or the new version) is drawn at once: the old poster picture goes, the new one fades in.
+    function pickShowsCase(view, id) {
+        return !!view.pbGame && (posterKind(view.pbGame, view.pbVersion) !== '' || posterKind(view.pbGame, id) !== '');
+    }
+
+    var BOX3D_CSS = '@keyframes pbBox3dIn{from{opacity:0}to{opacity:1}}' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .card{background:transparent !important;box-shadow:none !important}' +
+        // jellyfin-web paints .cardBox:not(.visualCardBox) .cardPadder #242424 with a shadow (card.scss): not behind a free-standing box. The marker of the version stays out as at the Three.js case.
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardPadder{background-color:transparent !important;box-shadow:none !important}' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .pbVersionMarker{display:none !important}' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer{background-color:transparent !important;' +
+        'background-image:var(--pb-box3d,none) !important;background-size:contain !important;background-position:center bottom !important;background-repeat:no-repeat !important}' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .blurhash-canvas,' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .cardImageIcon{display:none !important}' +
+        '#itemDetailPage.pbGame.pbBox3d.pbBox3dIn:not(.pbCase) .detailImageContainer .cardImageContainer{animation:pbBox3dIn 250ms ease}';
+
+    function clearBox3d(view) {
+        if (view) {
+            view.classList.remove('pbCase', 'pbBox3d', 'pbBox3dIn');
+            view.style.removeProperty('--pb-box3d');
+        }
+        setArtStyle('pbArtBox3dStyle', '');
+    }
+
+    // The classes of the page for one version, decided at once from the game answer already on the view (the old picture goes without waiting for a request);
+    // returns 'case', 'box3d' or ''. Box 3D is only ours to draw with Settings From = Playnite Bridge (a is the Artwork values then, else null).
+    function box3dCss(a) {
+        return BOX3D_CSS + posterCss(a.ArtPosterBox3dSizePercent, a.ArtPosterBox3dAnchor, '.pbBox3d:not(.pbCase)');
+    }
+
+    // The card that stands at a pick keeps its old 2D poster as a background until Jellyfin rebuilds it: while a page leaves Box 3D without ArtworkPlus, that
+    // poster stays hidden until the card is replaced (or 1.5 s).
+    var posterHold = null;
+
+    function holdPoster(view) {
+        var box = view.querySelector('.detailImageContainer');
+        if (!box) {
+            return;
+        }
+        if (posterHold) {
+            posterHold(false);
+        }
+        view.classList.add('pbPosterHold');
+        setArtStyle('pbArtHoldStyle', '@keyframes pbPosterIn{from{opacity:0}to{opacity:1}}' +
+            '#itemDetailPage.pbPosterHold .detailImageContainer .cardScalable{visibility:hidden !important}' +
+            '#itemDetailPage.pbPosterIn .detailImageContainer .cardScalable{animation:pbPosterIn 250ms ease}');
+        var observer = null;
+        var timer = 0;
+        var done = function (fade) {
+            clearTimeout(timer);
+            if (observer) {
+                observer.disconnect();
+            }
+            posterHold = null;
+            view.classList.remove('pbPosterHold');
+            if (fade === false) {
+                setArtStyle('pbArtHoldStyle', '');
+                return;
+            }
+            // the new poster fades in over 0.25 s (concept: the new picture appears with a fade-in)
+            view.classList.add('pbPosterIn');
+            setTimeout(function () {
+                view.classList.remove('pbPosterIn');
+                if (!posterHold) {
+                    setArtStyle('pbArtHoldStyle', '');
+                }
+            }, 300);
+        };
+        posterHold = done;
+        observer = new MutationObserver(function () {
+            done(true);
+        });
+        observer.observe(box, { childList: true });
+        timer = setTimeout(function () {
+            done(true);
+        }, 1500);
+    }
+
+    function syncPosterKind(view, id, a) {
+        var kind = view.pbGame ? posterKind(view.pbGame, id) : '';
+        var ours = !!(a && a.ArtPosterBox3dEnabled);
+        var was = view.classList.contains('pbBox3d');
+        view.classList.toggle('pbCase', kind === 'case');
+        view.classList.toggle('pbBox3d', kind === 'box3d' && ours);
+        view.classList.remove('pbBox3dIn');
+        view.style.removeProperty('--pb-box3d');
+        if (kind === 'box3d' && ours) {
+            setArtStyle('pbArtBox3dStyle', box3dCss(a));
+        } else {
+            setArtStyle('pbArtBox3dStyle', '');
+            if (was && kind !== 'case') {
+                holdPoster(view);
+            }
+        }
+        return kind === 'box3d' && ours ? 'box3d' : kind === 'case' ? 'case' : '';
+    }
+
+    // Box 3D failed (no entry, the picture does not decode, too late, request error): the 2D poster with its own rules comes back.
+    function box3dFailed(view) {
+        view.classList.remove('pbBox3d', 'pbBox3dIn');
+        view.style.removeProperty('--pb-box3d');
+        setArtStyle('pbArtBox3dStyle', '');
+        var a = lastConfig && lastConfig.Artwork;
+        if (a) {
+            setArtStyle('pbArtPosterStyle', posterCss(a.ArtPosterSizePercent, a.ArtPosterAnchor));
+        }
+    }
+
+    function startBox3d(view, api, id, a, gen, current, game) {
+        view.pbGame = view.pbGame || game;
+        var kind = syncPosterKind(view, id, a);
+        view.pbBoxArgs = { api: api, id: id, a: a, gen: gen, current: current, game: game };
+        if (kind !== 'box3d') {
+            return;
+        }
+        setArtStyle('pbArtBox3dStyle', box3dCss(a));
+        var fail = function () {
+            if (gen === artGeneration && current()) {
+                box3dFailed(view);
+            }
+        };
+        api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(id) + '/pictures')).then(function (list) {
+            var entry = (list || []).filter(function (p) {
+                return p && p.Type === 'box3d';
+            })[0];
+            if (gen !== artGeneration || !current()) {
+                return null;
+            }
+            if (!entry) {
+                fail();
+                return null;
+            }
+            var url = api.getUrl('PlayniteBridge/games/' + encodeURIComponent(id) + '/pictures/box3d', { tag: entry.Tag });
+            var image = new Image();
+            image.src = url;
+            return Promise.race([image.decode(), new Promise(function (resolve, reject) {
+                setTimeout(reject, 3000);
+            })]).then(function () {
+                if (gen === artGeneration && current() && view.classList.contains('pbBox3d')) {
+                    view.style.setProperty('--pb-box3d', 'url("' + url.replace(/"/g, '%22') + '")');
+                    view.classList.add('pbBox3dIn');
+                }
+            });
+        }).catch(fail);
+    }
+
+    // ArtworkPlus tells how its case went (shown | failed | none): on failed / none the version is no case any more, so Box 3D or the 2D poster rules apply.
+    document.addEventListener('artworkplus:gamecase', function (e) {
+        var d = e && e.detail;
+        if (!d || typeof d.id !== 'string') {
+            return;
+        }
+        caseState[plainId(d.id)] = d.state;
+        var view = document.querySelector('#itemDetailPage:not(.hide)');
+        var args = view && view.pbBoxArgs;
+        var isCase = !!view && view.classList.contains('pbCase');
+        // failed / none matter while the page stands back for a case; shown matters when it does not yet (a case that came on a later try)
+        if (args && (d.state === 'shown' ? !isCase : isCase) && plainId(args.id) === plainId(d.id) && args.gen === artGeneration && args.current()) {
+            startBox3d(view, args.api, args.id, args.a, args.gen, args.current, args.game);
+            setArtStyle('pbArtPosterStyle', posterCss(args.a.ArtPosterSizePercent, args.a.ArtPosterAnchor));
+        }
+    });
 
     function logoChain(a) {
         var chain = [];
@@ -8183,8 +8504,9 @@
     }
 
     // rule: the CharacterArt row of Artwork on Version Change ({ follow, keep }), only for a version picked on the standing page (keep).
-    function startArt(view, api, id, a, gen, keep, current, rule) {
+    function startArt(view, api, id, a, gen, keep, current, rule, game) {
         setArtStyle('pbArtPosterStyle', posterCss(a.ArtPosterSizePercent, a.ArtPosterAnchor));
+        startBox3d(view, api, id, a, gen, current, game);
         setArtStyle('pbArtStyle', logoUntouched(a) && !a.ArtCharacterArtShow ? '' : ART_CSS + logoCss(a));
         var listOf = function (game) {
             return api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(game) + '/characterart')).then(function (entries) {
@@ -8240,11 +8562,13 @@
                 view.pbCorner = null;
             }
             stopArt();
+            caseState = {};
             // Our two style elements stay across page changes only while an answer younger than 30 s says ArtworkPlus is not active; else they go at
             // once.
             if (!(lastConfig && Date.now() - lastConfigTime < 30000 && !apDraws(lastConfig))) {
                 setArtStyle('pbArtPosterStyle', '');
                 setArtStyle('pbArtStyle', '');
+                clearBox3d(view);
             }
         }
         var id = itemId();
@@ -8254,6 +8578,10 @@
         }
         artHash = window.location.hash;
         var gen = artGeneration;
+        // a version picked on the standing page: the old picture goes at once, decided from the game answer already on the view
+        if (keep && view.pbGame && lastConfig && lastConfig.Artwork && !apDraws(lastConfig)) {
+            syncPosterKind(view, id, lastConfig.Artwork);
+        }
         // A cached answer without ArtworkPlus whose chain does not begin with Jellyfin's logo hides that logo as soon as the page is known as a game,
         // before the fresh answer. Only an answer younger than 30 s counts.
         var early = lastConfig && Date.now() - lastConfigTime < 30000 && !apDraws(lastConfig) && lastConfig.Artwork;
@@ -8268,7 +8596,12 @@
         }
         Promise.all([loadGame(api, id), artConfiguration(api)]).then(function (results) {
             var config = results[1];
-            if (gen !== artGeneration || !current() || !results[0]) {
+            if (gen !== artGeneration || !current()) {
+                return;
+            }
+            if (!results[0]) {
+                // not a game (or its answer failed): what the synchronous decision set must not stay
+                box3dFailed(view);
                 return;
             }
             var hidden = view.querySelector('.detailLogo.pbLogoArtHidden');
@@ -8281,10 +8614,14 @@
                 }
                 setArtStyle('pbArtPosterStyle', '');
                 setArtStyle('pbArtStyle', '');
+                clearBox3d(view);
                 return;
             }
-            startArt(view, api, id, config.Artwork, gen, keep, current, config.VersionArtwork && config.VersionArtwork.Characterart);
+            startArt(view, api, id, config.Artwork, gen, keep, current, config.VersionArtwork && config.VersionArtwork.Characterart, results[0]);
         }, function () {
+            if (gen === artGeneration && current()) {
+                box3dFailed(view);
+            }
             var hidden = gen === artGeneration && current() && !keep && view.querySelector('.detailLogo.pbLogoArtHidden');
             if (hidden) {
                 hidden.classList.remove('pbLogoArtHidden');

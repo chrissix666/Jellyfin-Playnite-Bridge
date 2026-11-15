@@ -174,6 +174,7 @@ public class GamesController : ControllerBase
                     CastName = config.ConnectionsCastName.ToString(),
                     CastOwnName = Clamp40(config.ConnectionsCastOwnName),
                     config.ConnectionsShowDividers,
+                    config.ConnectionsShowDividersAlways,
                     config.ConnectionsNameSingleGroup,
                     GroupOrder = config.ConnectionsGroupOrder,
                     MediaOrder = config.ConnectionsMediaOrder
@@ -185,6 +186,7 @@ public class GamesController : ControllerBase
                 config.EnableSteamSpecialFeatures,
                 config.SteamSpecialsMerge,
                 config.VideosShowDividers,
+                config.VideosShowDividersAlways,
                 config.VideosKeepSlotsTogether,
                 config.ShowVideoIcon,
                 config.ShowSubtext,
@@ -693,6 +695,9 @@ public class GamesController : ControllerBase
             var (group, shown) = found.Value;
             var isAdmin = IsAdmin();
             var isLocal = IsLocal();
+            var caseData = _filter.DataFor(User);
+            var caseImages = _filter.Images();
+            var caseSettings = GameCaseData.CurrentSettings(Plugin.Instance!.ConfigurationFilePath);
             var versions = group.Versions.Select(v =>
             {
                 var versionDetail = v == game ? detail : PlayniteReader.ReadDetail(Guid.Parse(v.Id));
@@ -705,6 +710,9 @@ public class GamesController : ControllerBase
                     storeName = v.StoreName,
                     installed = v.Installed,
                     installSize = versionDetail?.InstallSize,
+                    // The 3D case shape of this version (box | disc | empty) and whether it has a Box 3D picture; the web client uses them to give way to ArtworkPlus.
+                    caseKind = ArtworkPlusLinkCore.CaseKind(caseData, caseImages, Guid.Parse(v.Id), caseSettings),
+                    box3d = ArtworkPlusLinkCore.CasePart(caseData, caseImages, Guid.Parse(v.Id), "box3d") is not null,
                     completionStatus = StatusLink(versionDetail?.CompletionStatus),
                     lastPlayed = v.LastActivity,
                     playtime = v.Playtime > 0 ? v.Playtime * TimeSpan.TicksPerSecond : (long?)null,
@@ -1107,7 +1115,7 @@ public class GamesController : ControllerBase
             var rows = _filter.DocumentRowsOf(game.Id).Where(r => row is null || r.Row == row).Select(r =>
             {
                 var files = _filter.DocumentFilesOf(game.Id, r.Row, useSeed);
-                var divided = r.Row == Documents.AllRows && config.DocumentsShowDividers && config.DocumentsKeepSlotsTogether && files.Select(f => f.Slot).Distinct().Count() > 1;
+                var divided = r.Row == Documents.AllRows && config.DocumentsShowDividers && config.DocumentsKeepSlotsTogether && (config.DocumentsShowDividersAlways || files.Select(f => f.Slot).Distinct().Count() > 1);
                 return new
                 {
                     row = r.Row,
@@ -1335,12 +1343,12 @@ public class GamesController : ControllerBase
 
             var shortId = GameExtras.ShortIdOf(game.Id);
             var useSeed = Screenshots.SeedFor(config, seed);
-            // Show Dividers: only the merged row with the slots together and more than one slot in it gets the slot names (key/label as the rows have them) and the slot of each tile.
+            // Show Dividers: only the merged row with the slots together and more than one slot in it gets the slot names (key/label as the rows have them) and the slot of each tile; with Show Dividers Always also when it holds one slot only.
             var slotNames = Screenshots.Slots(config).ToDictionary(s => s.Index.ToString(System.Globalization.CultureInfo.InvariantCulture), s => new { key = s.Key, label = s.Label });
             var rows = _filter.ScreenshotRowsOf(game.Id).Where(r => row is null || r.Row == row).Select(r =>
             {
                 var files = _filter.ScreenshotFilesOf(game.Id, r.Row, useSeed);
-                var divided = r.Row == Screenshots.AllRows && config.ScreenshotsShowDividers && config.ScreenshotsKeepSlotsTogether && files.Select(f => f.Slot).Distinct().Count() > 1;
+                var divided = r.Row == Screenshots.AllRows && config.ScreenshotsShowDividers && config.ScreenshotsKeepSlotsTogether && (config.ScreenshotsShowDividersAlways || files.Select(f => f.Slot).Distinct().Count() > 1);
                 return new
                 {
                     row = r.Row,
@@ -1391,7 +1399,7 @@ public class GamesController : ControllerBase
             var rows = _filter.WallpaperRowsOf(game.Id).Where(r => row is null || r.Row == row).Select(r =>
             {
                 var files = _filter.WallpaperFilesOf(game.Id, r.Row, useSeed);
-                var divided = r.Row == Wallpapers.AllRows && config.WallpapersShowDividers && config.WallpapersKeepSlotsTogether && files.Select(f => f.Slot).Distinct().Count() > 1;
+                var divided = r.Row == Wallpapers.AllRows && config.WallpapersShowDividers && config.WallpapersKeepSlotsTogether && (config.WallpapersShowDividersAlways || files.Select(f => f.Slot).Distinct().Count() > 1);
                 return new
                 {
                     row = r.Row,

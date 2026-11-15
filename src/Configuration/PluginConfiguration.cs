@@ -1147,6 +1147,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Connections: a divider with the group's name between the groups of the shared row; off puts all tiles in one row without any.</summary>
     public bool ConnectionsShowDividers { get; set; } = true;
 
+    /// <summary>Connections: the divider with the group's name also stands when the shared row has only one group (needs Show Dividers; not with Name Single Group).</summary>
+    public bool ConnectionsShowDividersAlways { get; set; }
+
     /// <summary>Connections: the order of the groups in the shared row as a list: series, media, cast.</summary>
     public string ConnectionsGroupOrder { get; set; } = "series,media,cast";
 
@@ -1161,6 +1164,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Videos: in the merged row a divider with a name between the Steam and the local videos (and, with the slots together, between the types and slots).</summary>
     public bool VideosShowDividers { get; set; }
+
+    /// <summary>Videos: the divider with the name also stands when the merged row has only one source or type (needs Show Dividers).</summary>
+    public bool VideosShowDividersAlways { get; set; }
 
     /// <summary>Show the camera on the cards of special features (local and Steam, in Jellyfin's row and in the plugin's own Steam row).</summary>
     public bool ShowVideoIcon { get; set; } = true;
@@ -1245,6 +1251,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Documents, merged display with the slots together: a divider with the slot's name before each slot's tiles.</summary>
     public bool DocumentsShowDividers { get; set; }
+
+    /// <summary>Documents: the divider with the slot's name also stands when the merged row has only one slot (needs Show Dividers).</summary>
+    public bool DocumentsShowDividersAlways { get; set; }
 
     /// <summary>Documents: the order inside a row.</summary>
     public ScreenshotSort DocumentsSort { get; set; } = ScreenshotSort.NameAscending;
@@ -1428,6 +1437,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Wallpapers &amp; Artwork, merged display with the slots together: a divider with the slot's name before each slot's tiles.</summary>
     public bool WallpapersShowDividers { get; set; }
+
+    /// <summary>Wallpapers &amp; Artwork: the divider with the slot's name also stands when the merged row has only one slot (needs Show Dividers).</summary>
+    public bool WallpapersShowDividersAlways { get; set; }
 
     /// <summary>Wallpapers &amp; Artwork: the order inside a row.</summary>
     public ScreenshotSort WallpapersSort { get; set; } = ScreenshotSort.NameAscending;
@@ -1627,6 +1639,9 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Screenshots, merged display with the slots together: a divider with the slot's name before each slot's tiles.</summary>
     public bool ScreenshotsShowDividers { get; set; }
+
+    /// <summary>Screenshots: the divider with the slot's name also stands when the merged row has only one slot (needs Show Dividers).</summary>
+    public bool ScreenshotsShowDividersAlways { get; set; }
 
     /// <summary>Screenshots: the order inside a row.</summary>
     public ScreenshotSort ScreenshotsSort { get; set; } = ScreenshotSort.NameAscending;
@@ -1915,6 +1930,15 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Place of a poster below 100 % inside the space of the full-size poster.</summary>
     public ArtPosterAnchorMode ArtPosterAnchor { get; set; } = ArtPosterAnchorMode.Default;
+
+    /// <summary>Box 3D (Settings From = Playnite Bridge): a game version's box3d picture takes the place of its 2D poster. Off by default; a 3D case of ArtworkPlus goes before it.</summary>
+    public bool ArtPosterBox3dEnabled { get; set; }
+
+    /// <summary>Size of the Box 3D picture in percent of Jellyfin's poster size, 10-200; 100 = Jellyfin.</summary>
+    public int ArtPosterBox3dSizePercent { get; set; } = 100;
+
+    /// <summary>Place of a Box 3D picture below 100 % inside the space of the full-size poster.</summary>
+    public ArtPosterAnchorMode ArtPosterBox3dAnchor { get; set; } = ArtPosterAnchorMode.Default;
 
     /// <summary>First stage of the logo slot of a game page.</summary>
     public ArtLogoArtSourceKind ArtLogoArtSource { get; set; } = ArtLogoArtSourceKind.VanillaLogo;
