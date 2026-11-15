@@ -8005,7 +8005,7 @@
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .pbVersionMarker{display:none !important}' +
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer{background-color:transparent !important;' +
         'background-image:var(--pb-box3d,none) !important;background-size:contain !important;background-position:center bottom !important;background-repeat:no-repeat !important}' +
-        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .blurhash-canvas,' +
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .blurhash-canvas,' +
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .cardImageIcon{display:none !important}' +
         '#itemDetailPage.pbGame.pbBox3d.pbBox3dIn:not(.pbCase) .detailImageContainer .cardImageContainer{animation:pbBox3dIn 250ms ease}';
 
