@@ -1074,6 +1074,10 @@
     // False only when the cover of the detail page names another version of this game than id; no cover yet, no id or an id that is no version of the
     // game counts as unknown.
     function renderedFor(view, id, game) {
+        // A card left standing on purpose (same art) still shows the other version's address: that is the intended state, not a failed switch.
+        if (view.pbKeptFor && view.pbKeptFor === id.replace(/-/g, '').toLowerCase()) {
+            return true;
+        }
         var cover = view.querySelector('.detailImageContainer .cardImageContainer');
         var url = cover && (cover.getAttribute('data-src') || cover.style.backgroundImage);
         var m = url && /\/Items\/([0-9a-f]{32})\//i.exec(url);
@@ -1100,15 +1104,98 @@
         if (id.replace(/-/g, '').toLowerCase() === view.pbVersion) {
             return;
         }
+        view.pbKeptFor = null;
         var hash = '#/details?id=' + encodeURIComponent(id) + '&serverId='
             + encodeURIComponent(routeParam('details', 'serverId') || window.ApiClient.serverId());
         // A switch that involves a 3D case or a Box 3D picture is drawn at once (no held picture, no overlay): the old picture goes, the new one fades in.
         // ArtworkPlus tries a case again at every switch: the target version's old failed / none does not decide this pick
         delete caseState[plainId(id)];
-        var atOnce = pickShowsCase(view, id);
-        if (inPlaceBroken || !switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id))) {
+        // Two versions that draw the very same card (equal artKey: content hashes of cover, Box 3D, case parts and texts) leave it standing: no hold, no overlay,
+        // the live card is put back after Jellyfin's rebuild, ArtworkPlus keeps its case (pbSameArt).
+        var same = sameArtVersions(view, view.pbVersion, id);
+        var atOnce = same || pickShowsCase(view, id);
+        if (inPlaceBroken || !switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id), same)) {
             window.location.replace(hash);
         }
+    }
+
+    // The artKey the game answer gives a version (everything its detail card draws, by content); '' when unknown.
+    function artKeyOf(view, id) {
+        var versions = view && view.pbGame && view.pbGame.versions;
+        var key = String(id || '').replace(/-/g, '').toLowerCase();
+        for (var i = 0; versions && i < versions.length; i++) {
+            if (versions[i] && typeof versions[i].id === 'string' && versions[i].id.replace(/-/g, '').toLowerCase() === key) {
+                return typeof versions[i].artKey === 'string' ? versions[i].artKey : '';
+            }
+        }
+        return '';
+    }
+
+    function sameArtVersions(view, fromId, toId) {
+        var a = artKeyOf(view, fromId);
+        return !!a && a === artKeyOf(view, toId);
+    }
+
+    // While a switch to a version with the same art runs, Jellyfin builds the new card's picture address from the new version's item; it is asked for the
+    // old version's address instead (the same picture, already in the browser's cache), so the rebuilt card the live one replaces costs no request.
+    var sameArtWindow = null;
+    var scaledUrlWrapped = false;
+
+    function wrapScaledImageUrl(api) {
+        if (scaledUrlWrapped || typeof Object.getPrototypeOf(api).getScaledImageUrl !== 'function') {
+            return;
+        }
+        scaledUrlWrapped = true;
+        var proto = Object.getPrototypeOf(api);
+        var previous = proto.getScaledImageUrl;
+        proto.getScaledImageUrl = function (itemId, options) {
+            var now = sameArtWindow;
+            if (now && Date.now() < now.until && now.tag && options && (!options.type || options.type === 'Primary') && String(itemId).replace(/-/g, '').toLowerCase() === now.to) {
+                return previous.call(this, now.from, Object.assign({}, options, { tag: now.tag }));
+            }
+            return previous.apply(this, arguments);
+        };
+    }
+
+    // The live cards (every .detailImageContainer: 12.1 has one for the desktop and one for the mobile layout) are put back where Jellyfin's rebuild puts new ones,
+    // in the microtask of the insertion, before a frame is drawn: the node, its decoded picture and whatever ArtworkPlus bound to it stay.
+    function keepCardsAcross(view, fromId, toId) {
+        var hosts = [].slice.call(view.querySelectorAll('.detailImageContainer'));
+        var picture = hosts.map(function (h) { return h.querySelector('.cardImageContainer'); }).filter(Boolean)[0];
+        var url = picture && ((picture.style.backgroundImage || '') + (picture.getAttribute('data-src') || ''));
+        var tag = url && /[?&]tag=([^&"')]+)/.exec(url);
+        sameArtWindow = { from: fromId.replace(/-/g, '').toLowerCase(), to: toId.replace(/-/g, '').toLowerCase(), tag: tag ? tag[1] : '', until: Date.now() + 3000 };
+        var keptFor = sameArtWindow.to;
+        // Stays until the next pick (pickVersion clears it): a slow rebuild must not be taken for a failed in-place switch.
+        view.pbKeptFor = keptFor;
+        hosts.forEach(function (host) {
+            var live = host.querySelector('.card');
+            if (!live || typeof MutationObserver !== 'function') {
+                return;
+            }
+            // Jellyfin's lazy loader runs over the page after the rebuild and meets the kept picture again: its fade-in (0 -> 1 in 0.1 s) must not replay on a picture that never went away.
+            var keptPicture = live.querySelector('.cardImageContainer');
+            if (keptPicture) {
+                keptPicture.style.setProperty('animation', 'none', 'important');
+                clearTimeout(keptPicture.pbNoFade);
+                keptPicture.pbNoFade = setTimeout(function () {
+                    keptPicture.style.removeProperty('animation');
+                }, 2500);
+            }
+            var observer = new MutationObserver(function () {
+                if (live.isConnected) {
+                    return;
+                }
+                var fresh = host.querySelector('.card');
+                if (fresh && fresh !== live) {
+                    host.replaceChild(live, fresh);
+                }
+            });
+            observer.observe(host, { childList: true });
+            setTimeout(function () {
+                observer.disconnect();
+            }, 3000);
+        });
     }
 
     // A version picked on the standing page is drawn by Jellyfin, ArtworkPlus and us, which would show several painted states. A view transition
@@ -1373,6 +1460,114 @@
             }
         }
     }
+
+    // The old picture of a switch to a version ArtworkPlus draws a case for: an overlay over the card's place (fixed, so ArtworkPlus hiding the card does not hide it) that stays until
+    // ArtworkPlus reports the case of the new id (shown: the case stands, the overlay goes at once; none / failed: it fades into the new 2D cover) or 3 s are over.
+    var waitCase = null;
+
+    function waitCaseGhost(view, id, cover) {
+        endWaitCase(false);
+        var box = coverElement(view);
+        var rect = box && box.getBoundingClientRect();
+        if (!rect || !rect.width) {
+            revokeCopies(cover.layers);
+            return;
+        }
+        var el = document.createElement('div');
+        el.className = 'pbGhost';
+        el.style.cssText = 'position:fixed;pointer-events:none;z-index:2;';
+        cover.layers.forEach(function (layer) {
+            var part = document.createElement('div');
+            part.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;background-image:url("' + (layer.copy || layer.url).replace(/"/g, '%22') + '");background-size:' + layer.size
+                + ';background-position:' + layer.position + ';background-repeat:' + layer.repeat + ';border-radius:' + layer.radius + ';opacity:' + layer.opacity;
+            el.appendChild(part);
+        });
+        var last = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        var place = function () {
+            var now = coverElement(view);
+            var r = now && now.getBoundingClientRect();
+            if (r && r.width > 20 && !(now.closest('.hide'))) {
+                last = { left: r.left, top: r.top, width: r.width, height: r.height };
+            }
+            el.style.left = last.left + 'px';
+            el.style.top = last.top + 'px';
+            el.style.width = last.width + 'px';
+            el.style.height = last.height + 'px';
+        };
+        place();
+        document.body.appendChild(el);
+        var state = waitCase = { id: id, el: el, cover: cover, view: view, raf: 0, timer: 0 };
+        var loop = function () {
+            if (waitCase !== state) {
+                return;
+            }
+            place();
+            state.raf = requestAnimationFrame(loop);
+        };
+        state.raf = requestAnimationFrame(loop);
+        state.timer = setTimeout(function () {
+            endWaitCase(true);
+        }, 3000);
+    }
+
+    // True when ArtworkPlus's case canvas of the page is on screen (visible, opacity >= 0.5 up the tree).
+    function caseVisible(view) {
+        var canvases = view.querySelectorAll('canvas.artworkplus-threejs-canvas');
+        for (var i = 0; i < canvases.length; i++) {
+            var o = 1;
+            for (var e = canvases[i]; e && e !== document.body && o > 0; e = e.parentElement) {
+                var st = getComputedStyle(e);
+                o = st.visibility === 'hidden' || st.display === 'none' ? 0 : o * parseFloat(st.opacity);
+            }
+            if (o >= 0.5) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // shown = true: the case stands, the overlay goes; else the old picture fades into the new cover (or goes at once when there is nothing to fade to).
+    function endWaitCase(fade, shown) {
+        var state = waitCase;
+        if (!state) {
+            return;
+        }
+        waitCase = null;
+        cancelAnimationFrame(state.raf);
+        clearTimeout(state.timer);
+        if (state.el.parentNode) {
+            state.el.parentNode.removeChild(state.el);
+        }
+        if (fade && !shown && state.view.isConnected && !state.view.classList.contains('hide')) {
+            startCoverFade(state.view, state.cover);
+        } else {
+            revokeCopies(state.cover.layers);
+        }
+    }
+
+    document.addEventListener('artworkplus:gamecase', function (e) {
+        var d = e && e.detail;
+        if (waitCase && d && typeof d.id === 'string' && plainId(d.id) === waitCase.id) {
+            if (d.state === 'shown') {
+                // 'shown' comes when the case is mounted, a moment before it is visible: the old picture goes only when the case is on screen (at most 1 s).
+                var state = waitCase;
+                var began = Date.now();
+                var until = function () {
+                    if (waitCase !== state) {
+                        return;
+                    }
+                    if (caseVisible(state.view) || Date.now() - began > 1000) {
+                        endWaitCase(true, true);
+                    } else {
+                        requestAnimationFrame(until);
+                    }
+                };
+                until();
+            } else {
+                endWaitCase(true, false);
+            }
+        }
+    });
 
     function placeCover(view, cover) {
         var box = coverElement(view);
@@ -1837,6 +2032,47 @@
         return entry;
     }
 
+    // pb:coverready { id, generation, none }: the new version's cover picture is set and decoded (none: it has no picture / did not come within 1.5 s). ArtworkPlus keeps a standing case
+    // until then and swaps it for the new picture in one step. Sent once per pick; a pick that was overtaken (another generation shown since) sends nothing.
+    function announceCoverReady(view, id, gen, oldCover) {
+        var started = Date.now();
+        var current = {};
+        var done = false;
+        var seenNode = null;
+        var seenAt = 0;
+        var finish = function (none) {
+            if (done) {
+                return;
+            }
+            done = true;
+            if (view.pbShownGen === gen && !view.pbLeft) {
+                document.dispatchEvent(new CustomEvent('pb:coverready', { detail: { id: id, generation: gen, none: !!none } }));
+            }
+        };
+        var tick = function () {
+            if (done || view.pbShownGen !== gen || view.pbLeft) {
+                done = true;
+                return;
+            }
+            var node = coverElement(view);
+            var url = node && node !== oldCover && !node.hasAttribute('data-src') && !node.classList.contains('lazy-hidden') ? pictureUrl(node) : '';
+            // The final card: Jellyfin has rebuilt it (not the old node), its picture is decoded, and it stood unchanged for 120 ms (a later rebuild would fade it in again).
+            if (node !== seenNode || !url) {
+                seenNode = url ? node : null;
+                seenAt = Date.now();
+            }
+            var fading = !!node && (parseFloat(getComputedStyle(node).opacity) < 0.98 || (typeof node.getAnimations === 'function' && node.getAnimations().some(function (a) { return a.playState === 'running'; })));
+            if (url && !fading && decodeOnce(current, url).ready && Date.now() - seenAt >= 120) {
+                finish(false);
+            } else if (Date.now() - started > 1500) {
+                finish(true);
+            } else {
+                setTimeout(tick, 30);
+            }
+        };
+        tick();
+    }
+
     function warmCover(current) {
         if (hold !== current || current.released) {
             return;
@@ -1978,7 +2214,7 @@
     // viewshow, so the id is replaced there, the URL follows without a router event, and the view gets the viewbeforehide/viewshow pair it would get
     // between two visits. False: no params object (the caller navigates). held: a pick drawn under holdSwitch; a page left before the transition's
     // callback keeps its id and URL.
-    function switchInPlace(view, id, hash, held, atOnce, apMayDraw) {
+    function switchInPlace(view, id, hash, held, atOnce, apMayDraw, sameArt) {
         var params = view.pbParams;
         if (!params || typeof params.id !== 'string' || !view.isConnected) {
             return false;
@@ -2018,8 +2254,16 @@
                 }
                 return;
             }
+            endWaitCase(false);
+            var oldCoverNode = coverElement(view);
+            var fromVersion = view.pbVersion;
             if (atOnce) {
+                // 2D (or Box 3D) -> case with other content: the old picture stays on screen until ArtworkPlus says how its case went (artworkplus:gamecase for the new id).
+                var waitLayers = !sameArt && posterKind(view.pbGame, id) === 'case' && posterKind(view.pbGame, fromVersion) !== 'case' ? captureCover(view) : null;
                 removeGhost(true);
+                if (waitLayers) {
+                    waitCaseGhost(view, id.replace(/-/g, '').toLowerCase(), waitLayers);
+                }
             }
             view.pbInPlace = true;
             view.pbArtKeep = true;
@@ -2028,11 +2272,19 @@
             // The history entry keeps the version the page was opened with (Artwork on Version Change): Back to this entry builds a new view
             // (Jellyfin caches views by the URL they were made for), which takes it over (pbCarried in the viewshow handler).
             window.history.replaceState(firstState(view.pbFirst, id.replace(/-/g, '').toLowerCase()), '', hash);
-            view.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: { type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen } }));
-            view.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: { type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen } }));
+            var fromId = view.pbVersion;
+            var same = sameArt ? { pbSameArt: true, sameArt: true, fromId: fromId, toId: id.replace(/-/g, '').toLowerCase() } : {};
+            if (sameArt) {
+                keepCardsAcross(view, fromId, id);
+            }
+            view.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: Object.assign({ type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen }, same) }));
+            view.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: Object.assign({ type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen }, same) }));
             if (atOnce) {
                 // No held picture to release: ArtworkPlus gets the signal of the switch right after the viewshow.
-                document.dispatchEvent(new CustomEvent('pb:switchrelease', { detail: { id: id.replace(/-/g, '').toLowerCase(), first: view.pbFirst, generation: gen, atOnce: true, apMayDraw: !!apMayDraw } }));
+                document.dispatchEvent(new CustomEvent('pb:switchrelease', { detail: Object.assign({ id: id.replace(/-/g, '').toLowerCase(), first: view.pbFirst, generation: gen, atOnce: true, apMayDraw: !!apMayDraw }, same) }));
+                if (!sameArt) {
+                    announceCoverReady(view, id.replace(/-/g, '').toLowerCase(), gen, oldCoverNode);
+                }
             }
         };
         if (held) {
@@ -3572,6 +3824,40 @@
         });
     }
 
+    // The track list is asked only when the page has settled (cover decoded, 1.2 s after the row was made, then an idle moment; at the latest 6 s) or when the album card is
+    // clicked: a first visit may make the server probe every track, which must never compete with the page's own title, card and backdrop.
+    function scheduleSoundtrack(row) {
+        var version = row.pbVersion;
+        var began = Date.now();
+        row.pbScheduled = version;
+        var settled = function () {
+            var view = row.closest && row.closest('.itemDetailPage');
+            var cover = view && coverElement(view);
+            return !!cover && !cover.hasAttribute('data-src') && !cover.classList.contains('lazy-hidden');
+        };
+        var tick = function () {
+            if (row.pbScheduled !== version || row.pbVersion !== version || !row.parentNode || row.pbLoaded === version || row.pbLoading === version) {
+                return;
+            }
+            var age = Date.now() - began;
+            if (document.hidden || (age < 1200) || (age < 6000 && !settled())) {
+                setTimeout(tick, 250);
+                return;
+            }
+            var go = function () {
+                if (row.pbScheduled === version && row.pbVersion === version && row.parentNode && !row.pbLoading && row.pbLoaded !== version) {
+                    fetchSoundtrack(row);
+                }
+            };
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(go, { timeout: 3000 });
+            } else {
+                go();
+            }
+        };
+        setTimeout(tick, 250);
+    }
+
     function loadSoundtrack(view, request, game, dictionary, order) {
         var id = view.pbVersion;
         var shown = (game.versions || []).filter(function (v) { return v && typeof v.id === 'string' && v.id.replace(/-/g, '').toLowerCase() === id; })[0];
@@ -3610,7 +3896,7 @@
                 return;
             }
             row.pbVersion = id;
-            fetchSoundtrack(row);
+            scheduleSoundtrack(row);
             return;
         }
         row.pbName = name;
@@ -3622,7 +3908,7 @@
             var container = row.querySelector('.itemsContainer');
             [].forEach.call(container.querySelectorAll('.pbTrack'), function (card) { card.parentNode.removeChild(card); });
             container.querySelector('.pbAlbum').outerHTML = albumCardHtml(row);
-            fetchSoundtrack(row);
+            scheduleSoundtrack(row);
         }
     }
 
@@ -5116,6 +5402,11 @@
 
     function rememberGameIds(ids, libraryId) {
         gameListComplete = !!libraryId && !!ids;
+        // the head's boot script answers isGame at once after a reload from these two keys
+        try {
+            window.localStorage.setItem('pbGamesComplete', gameListComplete && ids.length <= 4000 ? '1' : '0');
+        } catch (e) {
+        }
         if (!ids || !ids.length) {
             return;
         }
@@ -5161,11 +5452,30 @@
         return boxHoldData;
     }
 
+    // The head links box.css (rules of the server-drawn Box 3D card). When a setting changed since the page loaded it, the sheet is fetched again (the key is in the sheet itself).
+    function refreshBoxSheet(key) {
+        var link = document.querySelector('link[href*="PlayniteBridge/box.css"]');
+        if (!link || !key) {
+            return;
+        }
+        var have = (window.getComputedStyle(document.documentElement).getPropertyValue('--pb-box-key') || '').replace(/["'\s]/g, '');
+        if (have === key) {
+            return;
+        }
+        var fresh = link.cloneNode();
+        fresh.href = '../PlayniteBridge/box.css?k=' + encodeURIComponent(key);
+        fresh.onload = function () {
+            link.remove();
+        };
+        link.parentNode.insertBefore(fresh, link.nextSibling);
+    }
+
     function rememberBox3dIds(config) {
         var ours = !!(config && config.Artwork && config.Artwork.ArtPosterBox3dEnabled);
         var ids = (config && config.Box3dIds) || [];
         var tags = (config && config.Box3dTags) || {};
         var server = !!(config && config.Box3dFromServer);
+        refreshBoxSheet(config && config.Box3dStyleKey);
         boxHoldData = { known: true, ours: ours, ids: {}, tags: tags, server: server };
         ids.forEach(function (key) {
             boxHoldData.ids[String(key).toLowerCase()] = true;
@@ -5890,6 +6200,7 @@
         wrapGetUrl(api);
         wrapGetJson(api);
         wrapGetItem(api);
+        wrapScaledImageUrl(api);
         if (!stringsStarted) {
             stringsStarted = true;
             loadStrings();

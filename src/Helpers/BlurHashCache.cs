@@ -419,7 +419,7 @@ public sealed class MediaInfoStore : FileStore<MediaInfoStore.Entry>
 public sealed class MediaInfoCache
 {
     private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _running = new(2); // at most two ffprobe processes at once (Jellyfin's GetMediaInfo has no limit)
+    private readonly SemaphoreSlim _running; // at most this many ffprobe processes at once (Jellyfin's GetMediaInfo has no limit)
     private readonly Func<string, Task<MediaInfo>> _probe;
     private readonly Action<string, string> _warn;
     private readonly Func<MediaInfoStore>? _store;
@@ -428,8 +428,10 @@ public sealed class MediaInfoCache
     /// <param name="probe">The ffprobe answer of a file (IMediaEncoder.GetMediaInfo).</param>
     /// <param name="warn">Called once per file and state whose probe fails, with the path and the reason.</param>
     /// <param name="store">The store read first and given every successful probe; null = memory only.</param>
-    public MediaInfoCache(Func<string, Task<MediaInfo>> probe, Action<string, string> warn, Func<MediaInfoStore>? store = null)
+    /// <param name="parallel">How many ffprobe processes may run at once (2 for the videos, 1 for the soundtrack tracks).</param>
+    public MediaInfoCache(Func<string, Task<MediaInfo>> probe, Action<string, string> warn, Func<MediaInfoStore>? store = null, int parallel = 2)
     {
+        _running = new SemaphoreSlim(Math.Max(1, parallel));
         _probe = probe;
         _warn = warn;
         _store = store;

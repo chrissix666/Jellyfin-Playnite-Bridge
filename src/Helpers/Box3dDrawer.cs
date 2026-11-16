@@ -19,8 +19,54 @@ public static class Box3dDrawer
     /// <summary>The installed plugins with their status and instance; set once by the registration at the server start (null in the offline checks: nobody draws then).</summary>
     public static Func<IEnumerable<(Guid Id, PluginStatus Status, object? Instance)>>? Plugins { get; set; }
 
-    /// <summary>The drawer now, or null when nobody draws Box 3D on the game pages.</summary>
-    public static Box3dDraw? Current() => Plugin.Instance is { } plugin && Plugins is { } plugins ? Decide(plugin.Configuration, plugins()) : null;
+    /// <summary>True once the head block of index.html can be delivered (the File Transformation registration succeeded): without it nobody may hand out a Box 3D card address.</summary>
+    public static bool HeadDelivered { get; set; }
+
+    /// <summary>The drawer now, or null when nobody draws Box 3D on the game pages (also while the head block cannot be delivered).</summary>
+    public static Box3dDraw? Current() => HeadDelivered && Plugin.Instance is { } plugin && Plugins is { } plugins ? Decide(plugin.Configuration, plugins()) : null;
+
+    /// <summary>
+    /// True when ArtworkPlus draws the 3D case of a version of the case shape <paramref name="kind"/> (box or disc): it is active, its game cases are on and allow that shape. The one
+    /// definition of "a case is drawn" for the server (the web script asks ArtworkPlus's own answer at the client, which can still fail there).
+    /// </summary>
+    public static bool CaseDrawn(string kind)
+    {
+        if (kind.Length == 0 || Plugins is not { } plugins)
+        {
+            return false;
+        }
+
+        var ap = plugins().Where(p => p.Id == GamesController.ArtworkPlusId && p.Status == PluginStatus.Active).Select(p => p.Instance).FirstOrDefault();
+        try
+        {
+            var configuration = ap?.GetType().GetProperty("Configuration")?.GetValue(ap);
+            bool Flag(string name) => configuration?.GetType().GetProperty(name)?.GetValue(configuration) is true;
+            return configuration is not null && Flag("CaseModThreejsGamesEnabled") && Flag(kind == "disc" ? "CaseModThreejsGamesDisc" : "CaseModThreejsGamesBox");
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>The Box 3D file of a version when its detail card is drawn from it by the server (a drawer exists, the file exists and no case is drawn for the version); else null.</summary>
+    public static string? ServerBoxFile(GameData data, ImageCache images, Guid id, GameCaseData.Settings settings)
+    {
+        if (Current() is null || GamePictures.Picture(data, images, id, "box3d") is not string path || !System.IO.File.Exists(path))
+        {
+            return null;
+        }
+
+        return CaseDrawn(ArtworkPlusLinkCore.CaseKind(data, images, id, settings)) ? null : path;
+    }
+
+    /// <summary>Whether the request comes from a web client that loads the server's own web (and so the head block): Jellyfin Web, its desktop wrapper and the clients of the project's list. Native clients get 2D.</summary>
+    public static bool IsWebClient(string? authorization)
+    {
+        var m = authorization is null ? null : System.Text.RegularExpressions.Regex.Match(authorization, "Client=\"([^\"]*)\"", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var client = m is { Success: true } ? Uri.UnescapeDataString(m.Groups[1].Value) : string.Empty; // some web calls send the name URL-encoded ("Jellyfin%20Web")
+        return client.Length > 0 && System.Text.RegularExpressions.Regex.IsMatch(client, "jellyfin web|jellyfin desktop|desktop|xbox|jellium|noktus|mediaflick", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
 
     /// <summary>
     /// ArtworkPlus draws while it is active and Settings From is ArtworkPlus and its own "Box 3D" is on (CaseModBox3dEnabled, size CaseModPosterSizeBox3d, anchor

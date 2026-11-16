@@ -73,6 +73,8 @@ public class Registration : IHostedService
             });
             IndexHtmlCallback.Log = (ex, message) => _logger.LogError(ex, "{Message}", message);
             register.Invoke(null, new[] { parse.Invoke(null, new object?[] { payload }) });
+            // From here the head block of the Box 3D cards can be delivered: only now may the item answers hand out a Box 3D card address.
+            Helpers.Box3dDrawer.HeadDelivered = true;
             _logger.LogInformation("PlayniteBridge: index.html transformation registered");
         }
         catch (Exception ex)
@@ -120,18 +122,31 @@ public static class IndexHtmlCallback
 {
     public const string ScriptTag = "<script defer src=\"../PlayniteBridge/script.js\"></script>";
 
-    /// <summary>Marker of the head block of the Box 3D cards (rules + marking script); written only while somebody draws Box 3D, once.</summary>
-    public const string BoxHeadId = "pbBoxStatic";
+    /// <summary>
+    /// The two tags the head of index.html carries (once the transformation is registered, always, whether somebody draws Box 3D or not): the rules and the boot script of the Box 3D cards are
+    /// served live by the plugin (no-cache), because the browser keeps index.html itself for good (its validators come from the file on disk, not from this transformation).
+    /// </summary>
+    public const string HeadTags = "<link rel=\"stylesheet\" href=\"../PlayniteBridge/box.css\"><script src=\"../PlayniteBridge/boot.js\"></script>";
 
-    // The card of a Box 3D game carries "tag=pbbox-" in the address of its picture (the item answer says so, VirtualItemsFilter.BoxTagPrefix). This script runs in <head>, before the web
-    // client's own scripts, with no data: every card the web client inserts on a detail page whose picture carries the prefix gets the class pbBoxCard (its container pbBoxHost) in the
-    // microtask of the insertion, before the first paint. Works in every browser that has MutationObserver (no :has()).
-    private const string BoxMarkScript =
-        "(function(){try{var S='.cardImageContainer[data-src*=\"tag=pbbox-\"],.cardImageContainer[style*=\"tag=pbbox-\"]';"
+    /// <summary>
+    /// The boot script (no data, runs in &lt;head&gt; before the web client's own scripts): (1) answers window.PlayniteBridge.isGame / box3d at once from what the script remembered in localStorage
+    /// (true = a game, false = certainly none once the whole list is remembered, null = not known yet); (2) marks every card the web client inserts on a game's detail page whose picture address carries
+    /// "tag=pbbox-" with the class pbBoxCard (its container pbBoxHost) in the microtask of the insertion, before the first paint. The observer works only on detail pages that may be games: a page whose
+    /// id is certainly no game (movie, series, person) is left alone.
+    /// </summary>
+    public const string BootScript =
+        "(function(){try{var ls=window.localStorage,P=window.PlayniteBridge=window.PlayniteBridge||{},known={},complete=false,hold=null;"
+        + "var norm=function(i){return String(i||'').replace(/-/g,'').toLowerCase();};"
+        + "try{(JSON.parse(ls.getItem('pbKnownGames'))||[]).forEach(function(k){known[k]=1;});complete=ls.getItem('pbGamesComplete')==='1'&&Object.keys(known).length>0;}catch(e){}"
+        + "try{hold=JSON.parse(ls.getItem('pbBox3dHold'));}catch(e){}"
+        + "P.isGame=function(i){var k=norm(i);return known[k]?true:(complete?false:null);};"
+        + "P.box3d=function(i){if(!hold){return null;}var k=norm(i);return !!(hold.ours&&hold.ids&&hold.ids.indexOf(k)>=0);};"
+        + "P.box3dTag=function(i){return hold&&hold.tags&&hold.tags[norm(i)]||null;};"
+        + "var S='.cardImageContainer[data-src*=\"tag=pbbox-\"],.cardImageContainer[style*=\"tag=pbbox-\"]';"
+        + "function relevant(){var h=location.hash||'';if(h.indexOf('#/details')!==0){return false;}var m=/[?&]id=([0-9a-fA-F-]{32,36})/.exec(h);return !(m&&complete&&!known[norm(m[1])]);}"
         + "function mark(n){if(n.nodeType!==1){return;}var l=n.matches&&n.matches(S)?[n]:(n.querySelectorAll?n.querySelectorAll(S):[]);"
         + "for(var i=0;i<l.length;i++){var c=l[i].closest('.card');if(c){c.classList.add('pbBoxCard');var h=c.closest('.detailImageContainer');if(h){h.classList.add('pbBoxHost');}}}}"
-        + "new MutationObserver(function(ms){if((location.hash||'').indexOf('#/details')!==0){return;}"
-        + "for(var i=0;i<ms.length;i++){var a=ms[i].addedNodes;for(var j=0;j<a.length;j++){mark(a[j]);}}}).observe(document,{childList:true,subtree:true});}catch(e){}})();";
+        + "new MutationObserver(function(ms){if(!relevant()){return;}for(var i=0;i<ms.length;i++){var a=ms[i].addedNodes;for(var j=0;j<a.length;j++){mark(a[j]);}}}).observe(document,{childList:true,subtree:true});}catch(e){}})();";
 
     /// <summary>Static rules of the marked Box 3D card: no card ground, no placeholder icon or blurhash, no marker, the picture contained at the bottom; plus its size and anchor.</summary>
     public static string BoxRules(Helpers.Box3dDraw draw)
@@ -142,6 +157,8 @@ public static class IndexHtmlCallback
             .Append(".pbBoxCard .cardPadder *{visibility:hidden !important}")
             .Append(".pbBoxCard .blurhash-canvas{display:none !important}")
             .Append(".pbBoxCard .cardImageContainer{background-color:transparent !important;background-size:contain !important;background-position:center bottom !important;background-repeat:no-repeat !important;animation:none !important}")
+            // Jellyfin's lazy loader hides a picture (opacity 0) until it has loaded again, also when the page comes back from its view cache with the picture still set: no hiding for the Box 3D card.
+            .Append(".pbBoxCard .cardImageContainer.lazy-hidden{opacity:1 !important}")
             .Append(".pbBoxCard .cardImageContainer .pbVersionMarker{display:none !important}");
         if (draw.SizePercent != 100 && draw.SizePercent > 0)
         {
@@ -180,9 +197,18 @@ public static class IndexHtmlCallback
         _ => (0, 0)
     };
 
-    /// <summary>The head block: the rules of <see cref="BoxRules"/> and the marking script; empty while nobody draws Box 3D (the page is then exactly Jellyfin's own).</summary>
-    public static string BoxHead() =>
-        Helpers.Box3dDrawer.Current() is { } draw ? "<style id=\"" + BoxHeadId + "\">" + BoxRules(draw) + "</style><script>" + BoxMarkScript + "</script>" : string.Empty;
+    /// <summary>
+    /// The style sheet the head links (served live): the rules of <see cref="BoxRules"/> for the current drawer (the static rules alone while nobody draws, they match no card then), and a
+    /// custom property with the key of the rules so the web script can tell that a setting changed and load the sheet again.
+    /// </summary>
+    public static string BoxSheet() => ":root{--pb-box-key:\"" + BoxStyleKey() + "\"}" + BoxRules(Helpers.Box3dDrawer.Current() ?? new Helpers.Box3dDraw(false, 100, "Default"));
+
+    /// <summary>Short key of the current rules (size, anchor, drawer): changes when a setting that moves the box changes.</summary>
+    public static string BoxStyleKey()
+    {
+        var draw = Helpers.Box3dDrawer.Current();
+        return draw is null ? "none" : (draw.ByArtworkPlus ? "ap" : "bridge") + "-" + draw.SizePercent + "-" + draw.Anchor;
+    }
 
     /// <summary>Error log, set by <see cref="Registration"/>; a plain delegate so the callback needs no Jellyfin types.</summary>
     public static Action<Exception, string>? Log { get; set; }
@@ -213,10 +239,11 @@ public static class IndexHtmlCallback
                 return contents;
             }
 
-            // The Box 3D head block goes right after <head> (before any stylesheet or script), once, only while somebody draws Box 3D.
+            // The two Box 3D tags go right after <head> (before any stylesheet or script), once, as soon as the transformation is registered.
             var head = contents.IndexOf("<head>", StringComparison.Ordinal);
             var result = contents.Insert(body, ScriptTag);
-            return head >= 0 && head < body && !contents.Contains(BoxHeadId, StringComparison.Ordinal) && BoxHead() is { Length: > 0 } block ? result.Insert(head + "<head>".Length, block) : result;
+            return Helpers.Box3dDrawer.HeadDelivered && head >= 0 && head < body && !contents.Contains("PlayniteBridge/boot.js", StringComparison.Ordinal)
+                ? result.Insert(head + "<head>".Length, HeadTags) : result;
         }
         catch (Exception ex)
         {

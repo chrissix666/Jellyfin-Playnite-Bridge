@@ -154,6 +154,12 @@ public abstract class BuildGameImagesTaskBase
                 CancellationToken.None),
             (path, reason) => _logger.LogWarning("PlayniteBridge: cannot probe the local extra \"{File}\": {Message}", Path.GetFileName(path), reason),
             () => MediaInfoStore.Shared(_logger));
+        var audioProbes = new MediaInfoCache(
+            path => _mediaEncoder.GetMediaInfo(
+                new MediaInfoRequest { MediaSource = new MediaSourceInfo { Path = path, Protocol = MediaProtocol.File, VideoType = VideoType.VideoFile }, MediaType = DlnaProfileType.Audio },
+                CancellationToken.None),
+            (path, reason) => _logger.LogWarning("PlayniteBridge: cannot read the soundtrack file \"{File}\": {Message}", Path.GetFileName(path), reason),
+            () => MediaInfoStore.Shared(_logger), parallel: 1);
         var hashed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int folders, computed = 0, kept = 0, removed = 0;
         try
@@ -171,6 +177,19 @@ public abstract class BuildGameImagesTaskBase
                 foreach (var extra in stills ? extras.ForGroup(groups[i]).Where(e => e.ImagePath is null && (e.Kind == ExtraKind.Trailer && config.EnableTrailers || e.Kind == ExtraKind.Special && config.EnableExtras && VideoRows.Shown(config, e))) : Enumerable.Empty<GameExtra>())
                 {
                     await VirtualItemsFilter.StillFrame(extra, _paths.CachePath, probes, _mediaEncoder, _logger).ConfigureAwait(false);
+                }
+
+                // The soundtrack tracks are probed here (stored answers first, two ffprobe processes at most), so opening a game's soundtrack row later needs no probe.
+                if (part == Part.Extras && config.EnableSoundtrack)
+                {
+                    foreach (var track in extras.ForGroup(groups[i]).Where(e => e.Kind == ExtraKind.Soundtrack))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (ImageCache.Tag(track.Path) is string trackTag)
+                        {
+                            await audioProbes.Get(track.Path, trackTag).ConfigureAwait(false);
+                        }
+                    }
                 }
 
                 foreach (var file in ShownImages(cache, groups[i], visible, extras.ForGroup(groups[i]), _paths.CachePath))

@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using Jellyfin.Plugin.PlayniteBridge.Configuration;
 using Jellyfin.Plugin.PlayniteBridge.Filters;
@@ -228,6 +230,54 @@ public static class ArtworkPlusLinkCore
         var rows = GameCaseData.Build(game.Name, game.Platforms, game.Year, null, null, images.GameFolder(game),
             CasePart(data, images, id, "front"), CasePart(data, images, id, "back"), CasePart(data, images, id, "spine"), null, null, settings, _ => null);
         return rows.FirstOrDefault(r => r[0] == "kind")?[1] ?? string.Empty;
+    }
+
+    /// <summary>
+    /// The key of everything a version's detail card draws: the content hashes (not paths or tags) of its cover, Box 3D picture, backdrops (Fanart) and the case parts with the case's text rows
+    /// (kind, depth, source, platform, name, publisher, developer), the drawer and its size/anchor, and the stamps of the two configuration files. Two versions with the same key draw the same
+    /// card, so a switch between them leaves it standing. Empty for an id that is no game. Rather too fine than too coarse: a file that cannot be hashed gives its own tag-and-length instead.
+    /// </summary>
+    public static string ArtKey(GameData data, ImageCache images, Guid id, GameCaseData.Settings settings, string drawer, string configStamp)
+    {
+        if (Game(data, id) is not GameHit hit)
+        {
+            return string.Empty;
+        }
+
+        var game = hit.Game!;
+        static string Of(string? path) => path is null ? "-" : ImageCache.ContentKey(path) ?? ("t:" + (ImageCache.Tag(path) ?? "?"));
+        var text = new StringBuilder();
+        text.Append("drawer=").Append(drawer).Append('\n').Append("stamp=").Append(configStamp).Append('\n');
+        var rows = GameCaseData.Build(game.Name, game.Platforms, game.Year, game.Publishers, game.Developers, images.GameFolder(game),
+            CasePart(data, images, id, "front"), CasePart(data, images, id, "back"), CasePart(data, images, id, "spine"),
+            CasePart(data, images, id, "disc"), CasePart(data, images, id, "logo"), settings, Of);
+        foreach (var row in rows)
+        {
+            // the picture rows carry a path as their value: only the content hash counts
+            var isPicture = row[0] is "front" or "back" or "spine" or "disc" or "logo";
+            text.Append(row[0]).Append('=').Append(isPicture ? string.Empty : row[1]).Append('|').Append(row.Length > 2 ? row[2] : string.Empty).Append('\n');
+        }
+
+        var cover = images.Image(hit.Group!, game, ImageType.Primary);
+        var box = CasePart(data, images, id, "box3d");
+        if (cover is null && box is null && rows.Length == 0)
+        {
+            // Nothing to compare (no cover, no Box 3D, no case): no key, so two such versions are never taken for the same picture.
+            return string.Empty;
+        }
+
+        text.Append("cover=").Append(Of(cover)).Append('\n');
+        text.Append("box3d=").Append(Of(box)).Append('\n');
+        // The backdrops matter to the card only as the booklet's Fanart of a 3D case; for a cover or a Box 3D they are another artwork (own rule, canonical by content).
+        if (rows.Length > 0)
+        {
+            foreach (var backdrop in VirtualItemsFilter.TaggedBackdrops(images, hit.Group!, game))
+            {
+                text.Append("backdrop=").Append(Of(backdrop.Path)).Append('\n');
+            }
+        }
+
+        return Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(text.ToString())))[..20].ToLowerInvariant();
     }
 
     /// <summary>The rows of <see cref="ArtworkPlusLink.GameCase"/>; empty unless the user may see the game (as <see cref="IsVisibleTo"/>) and front and back exist.</summary>

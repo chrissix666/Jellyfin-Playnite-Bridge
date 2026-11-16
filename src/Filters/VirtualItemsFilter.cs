@@ -128,7 +128,9 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
             path => mediaEncoder.GetMediaInfo(
                 new MediaInfoRequest { MediaSource = ExtraSource(path), MediaType = DlnaProfileType.Audio },
                 CancellationToken.None),
-            (path, reason) => logger.LogWarning("PlayniteBridge: cannot read the soundtrack file \"{File}\": {Message}", Path.GetFileName(path), reason));
+            (path, reason) => logger.LogWarning("PlayniteBridge: cannot read the soundtrack file \"{File}\": {Message}", Path.GetFileName(path), reason),
+            // Stored like the videos' probes: the first visit of a game after a start must not probe every track again (Sync Extras fills the store beforehand).
+            () => MediaInfoStore.Shared(logger), parallel: 1);
         // The singleton is made by Jellyfin at the first MVC request; from then on ArtworkPlusLink answers through it.
         ArtworkPlusLink.Register(this);
         GlobeLink.Register(this);
@@ -720,10 +722,12 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         var group = hit.Group!;
         var dto = ToDto(group, game, libraryId.Value, Images());
         // The detail page draws the Box 3D picture itself (Jellyfin builds the card from this answer): its Primary tag carries the prefix, no BlurHash for it.
-        if (ServerBoxTag(data, Images(), game) is string serverBox)
+        if (WebClientRequest(context.HttpContext) && ServerBoxTag(data, Images(), game) is string serverBox)
         {
             dto.ImageTags![ImageType.Primary] = serverBox;
             dto.ImageBlurHashes?.Remove(ImageType.Primary);
+            // The card is a portrait card whatever the cover is (a version without a 2D cover has no ratio): the box is drawn contained in it.
+            dto.PrimaryImageAspectRatio = 2.0 / 3.0;
         }
 
         // Several versions: Jellyfin's "Version" list (filled by the web script, a virtual item gets none from Jellyfin Web), main version first.
@@ -768,14 +772,64 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
             return null;
         }
 
-        var id = Guid.Parse(game.Id);
         var settings = GameCaseData.CurrentSettings(Plugin.Instance.ConfigurationFilePath);
-        if (ArtworkPlusLinkCore.CasePart(data, images, id, "box3d") is null || ArtworkPlusLinkCore.CaseKind(data, images, id, settings) != string.Empty)
+        return ImageCache.Tag(Box3dDrawer.ServerBoxFile(data, images, Guid.Parse(game.Id), settings)) is string tag ? BoxTagPrefix + tag : null;
+    }
+
+    /// <summary>
+    /// Whether the request comes from a web client: by the client name of the session the token belongs to (Jellyfin's "Jellyfin-Client" claim; the web client sends some calls with the token
+    /// only, 12.x), else by the name in the authorization header (URL-encoded names are decoded).
+    /// </summary>
+    private static bool WebClientRequest(HttpContext http)
+    {
+        var claim = http.User.FindFirst("Jellyfin-Client")?.Value;
+        if (!string.IsNullOrEmpty(claim))
+        {
+            return Box3dDrawer.IsWebClient("Client=\"" + claim + "\"");
+        }
+
+        var auth = http.Request.Headers.Authorization.ToString();
+        return Box3dDrawer.IsWebClient(auth.Length > 0 ? auth : http.Request.Headers["X-Emby-Authorization"].ToString());
+    }
+
+    /// <summary>
+    /// The Box 3D file that carries <paramref name="tag"/> (the file tag without the prefix) among the versions of <paramref name="game"/> (itself first), when a drawer exists and the file is a
+    /// readable picture; else null. A version that has no box of its own can show the first version's box (Cover follows version off), exactly as 2D resolves a foreign tag.
+    /// </summary>
+    private string? BoxOwnerFile(GameData data, GameEntry game, string tag)
+    {
+        if (Box3dDrawer.Current() is null)
         {
             return null;
         }
 
-        return ImageCache.Tag(GamePictures.Picture(data, images, id, "box3d")) is string tag ? BoxTagPrefix + tag : null;
+        var versions = data.DetailGroupOf(game.Id) ?? data.GroupOf(game);
+        var candidates = new[] { game }.Concat(versions.Versions.Select(v => data.Find(Guid.Parse(v.Id))).Where(h => h?.Kind == GameHitKind.Game).Select(h => h!.Game!).Where(g => !ReferenceEquals(g, game)));
+        foreach (var candidate in candidates)
+        {
+            if (GamePictures.Picture(data, Images(), Guid.Parse(candidate.Id), "box3d") is string path && ImageCache.Tag(path) == tag && ReadablePicture(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Whether the file starts like a PNG, JPEG or WebP picture (a broken or foreign file is not served as a box).</summary>
+    private static bool ReadablePicture(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var head = new byte[12];
+            var read = stream.Read(head, 0, head.Length);
+            return read >= 8 && ((head[0] == 0x89 && head[1] == 0x50 && head[2] == 0x4E && head[3] == 0x47) || (head[0] == 0xFF && head[1] == 0xD8) || (head[0] == 0x52 && head[1] == 0x49 && head[2] == 0x46 && head[3] == 0x46));
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private async Task<IActionResult?> ImageResult(ActionExecutingContext context)
@@ -788,17 +842,15 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
         // The square list view image (the script asks it with pbIcon=1): the game's icon and/or square image instead of the cover, as List Image says.
         var icon = game is not null && type == ImageType.Primary && context.HttpContext.Request.Query["pbIcon"].FirstOrDefault() == "1";
         // The prefixed Primary tag of a Box 3D game is the Box 3D picture itself, unscaled (its tag is the file's, so the browser may keep it for a year).
-        if (game is not null && type == ImageType.Primary && Arg<string>(context, "tag") is string boxAsked && boxAsked.StartsWith(BoxTagPrefix, StringComparison.Ordinal))
+        if (game is not null && type == ImageType.Primary && Arg<string>(context, "tag") is string boxAsked && boxAsked.StartsWith(BoxTagPrefix, StringComparison.Ordinal)
+            && BoxOwnerFile(data, game, boxAsked.Substring(BoxTagPrefix.Length)) is string boxPath)
         {
-            var boxPath = GamePictures.Picture(data, Images(), id, "box3d");
-            if (boxPath is null || !File.Exists(boxPath))
-            {
-                return new NotFoundResult();
-            }
-
-            // Scaled to fit the size the card asks for, never cropped to its 2:3 (contain): the picture is the box with its transparent edge.
+            // The tag binds the file (the version whose Box 3D file has it, as Artwork on Version Change asks it for another version), so it may be kept a year;
+            // scaled to fit the size the card asks for, never cropped to its 2:3 (contain): the picture is the box with its transparent edge.
             return await ProcessedImage(context, boxPath, type, blurHash: false, contain: true).ConfigureAwait(false);
         }
+
+        // Anything else under a box tag (no drawer, a stale tag, no or a broken file) is the 2D cover of the asked version below, under the short rules of a tag that is not the file's.
 
         if (game is null)
         {

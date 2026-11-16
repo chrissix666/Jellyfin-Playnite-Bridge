@@ -139,6 +139,7 @@ public class GamesController : ControllerBase
                 ? new List<GameGroup>()
                 : GameGroups.Group(AllowedGames(PlayniteReader.ReadVisibleGames(config.ShowHidden)), config);
             var marked = groups.Select(g => (Group: g, Icons: GameGroups.MarkerIcons(g, config))).Where(m => m.Icons.Length > 0).ToList();
+            var box3dTags = Box3dVersionTags(groups);
             return Ok(new
             {
                 LibraryId = libraryId?.ToString("N"),
@@ -150,10 +151,12 @@ public class GamesController : ControllerBase
                 MarkerTitles = marked.ToDictionary(m => Guid.Parse(m.Group.Main.Id).ToString("N"), m => string.Join(", ", GameGroups.MarkerLabels(m.Group))),
                 VersionCounts = VersionCounts(groups, config),
                 GameIds = groups.SelectMany(g => g.Versions).Select(v => Guid.Parse(v.Id).ToString("N")).ToArray(),
-                Box3dIds = Box3dVersionIds(groups),
-                Box3dTags = Box3dVersionTags(groups),
+                Box3dIds = box3dTags.Keys.ToArray(),
+                Box3dTags = box3dTags,
                 // The item answer of a Box 3D game already carries the Box 3D as its Primary picture (whoever draws it): the web script neither holds the card nor fades the picture in again.
                 Box3dFromServer = Box3dDrawer.Current() is not null,
+                // The key of the rules the head's style sheet holds now: the web script loads the sheet again when its own copy differs.
+                Box3dStyleKey = FileTransformation.IndexHtmlCallback.BoxStyleKey(),
                 config.DimUninstalled,
                 DimStrength = DimStrength(config),
                 Uninstalled = UninstalledTiles(groups, config.DimUninstalled),
@@ -273,30 +276,37 @@ public class GamesController : ControllerBase
                 keep = (bool)typeof(PluginConfiguration).GetProperty("VersionKeep" + t)!.GetValue(config)!
             });
 
-    /// <summary>The versions (32 hex) that have a Box 3D picture and are no 3D case: the web script hides the poster card of such a page from the first frame, before the game answer.</summary>
-    private string[] Box3dVersionIds(IEnumerable<GameGroup> groups)
+    /// <summary>The write times of the Bridge's and ArtworkPlus's configuration files: part of the card key, so a changed setting makes a new key.</summary>
+    private static string ConfigStamp()
     {
-        var caseData = _filter.DataFor(User);
-        var caseImages = _filter.Images();
-        var caseSettings = GameCaseData.CurrentSettings(Plugin.Instance!.ConfigurationFilePath);
-        return groups.SelectMany(g => g.Versions).Select(v => Guid.Parse(v.Id))
-            .Where(id => ArtworkPlusLinkCore.CasePart(caseData, caseImages, id, "box3d") is not null
-                && ArtworkPlusLinkCore.CaseKind(caseData, caseImages, id, caseSettings) == "")
-            .Select(id => id.ToString("N")).ToArray();
+        try
+        {
+            var own = Plugin.Instance!.ConfigurationFilePath;
+            var ap = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(own) ?? string.Empty, "Jellyfin.Plugin.ArtworkPlus.xml");
+            return System.IO.File.GetLastWriteTimeUtc(own).Ticks + "/" + (System.IO.File.Exists(ap) ? System.IO.File.GetLastWriteTimeUtc(ap).Ticks : 0);
+        }
+        catch (Exception)
+        {
+            return "?";
+        }
     }
 
-    /// <summary>The tag of the Box 3D picture (the one games/{id}/pictures lists, loaded as games/{id}/pictures/box3d?tag=) per version of <see cref="Box3dVersionIds"/>, so the
-    /// web script and ArtworkPlus can load the picture at once, without asking for the list first. Independent of who draws the Box 3D.</summary>
+    /// <summary>
+    /// The versions (32 hex) whose detail card the server draws from the Box 3D picture, with the picture's tag (as games/{id}/pictures lists it, loaded as games/{id}/pictures/box3d?tag=): a drawer
+    /// exists, the file exists and no 3D case is drawn for the version (<see cref="Box3dDrawer.ServerBoxFile"/>, the same rule as the item answer). One pass per answer.
+    /// </summary>
     private Dictionary<string, string> Box3dVersionTags(IEnumerable<GameGroup> groups)
     {
         var data = _filter.DataFor(User);
         var images = _filter.Images();
+        var settings = GameCaseData.CurrentSettings(Plugin.Instance!.ConfigurationFilePath);
         var tags = new Dictionary<string, string>();
-        foreach (var key in Box3dVersionIds(groups))
+        foreach (var version in groups.SelectMany(g => g.Versions))
         {
-            if (ImageCache.Tag(GamePictures.Picture(data, images, Guid.Parse(key), "box3d")) is string tag)
+            var id = Guid.Parse(version.Id);
+            if (ImageCache.Tag(Box3dDrawer.ServerBoxFile(data, images, id, settings)) is string tag)
             {
-                tags[key] = tag;
+                tags[id.ToString("N")] = tag;
             }
         }
 
@@ -733,6 +743,8 @@ public class GamesController : ControllerBase
             var caseData = _filter.DataFor(User);
             var caseImages = _filter.Images();
             var caseSettings = GameCaseData.CurrentSettings(Plugin.Instance!.ConfigurationFilePath);
+            var drawerKey = Box3dDrawer.Current() is { } drawn ? (drawn.ByArtworkPlus ? "ap" : "bridge") + ":" + drawn.SizePercent + ":" + drawn.Anchor : "none";
+            var configStamp = ConfigStamp();
             var versions = group.Versions.Select(v =>
             {
                 var versionDetail = v == game ? detail : PlayniteReader.ReadDetail(Guid.Parse(v.Id));
@@ -748,6 +760,8 @@ public class GamesController : ControllerBase
                     // The 3D case shape of this version (box | disc | empty) and whether it has a Box 3D picture; the web client uses them to give way to ArtworkPlus.
                     caseKind = ArtworkPlusLinkCore.CaseKind(caseData, caseImages, Guid.Parse(v.Id), caseSettings),
                     box3d = ArtworkPlusLinkCore.CasePart(caseData, caseImages, Guid.Parse(v.Id), "box3d") is not null,
+                    // Everything this version's detail card draws, by content: equal keys = the same card (the page leaves it standing at a version switch).
+                    artKey = ArtworkPlusLinkCore.ArtKey(caseData, caseImages, Guid.Parse(v.Id), caseSettings, drawerKey, configStamp),
                     completionStatus = StatusLink(versionDetail?.CompletionStatus),
                     lastPlayed = v.LastActivity,
                     playtime = v.Playtime > 0 ? v.Playtime * TimeSpan.TicksPerSecond : (long?)null,
