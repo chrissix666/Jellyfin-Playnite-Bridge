@@ -28,7 +28,7 @@ public static class GameCaseData
     public const string OverrideFile = "casetype.txt";
 
     /// <summary>The ArtworkPlus settings that decide the shape of a PC game without a spine picture.</summary>
-    public sealed record Settings(string NoSpineForm, int NoSpineYear)
+    public sealed record Settings(string NoSpineForm, int NoSpineYear, string Booklet = "Black", bool SpineLogo = true)
     {
         public static readonly Settings Default = new("Year", 2005);
     }
@@ -367,7 +367,11 @@ public static class GameCaseData
             var yearText = root?.Element("CaseModThreejsGamesNoSpineYear")?.Value.Trim();
             var okForm = form is "Disc" or "Box" or "Year" ? form : Settings.Default.NoSpineForm;
             var okYear = int.TryParse(yearText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var y) && y is >= 1970 and <= 2100 ? y : Settings.Default.NoSpineYear;
-            return new Settings(okForm, okYear);
+            // what the case draws also depends on the booklet (Off / Black / BwFanart / BlurredFanart) and on the logo of the substitute spine
+            var booklet = root?.Element("CaseModThreejsGamesBooklet")?.Value.Trim();
+            var okBooklet = booklet is "Off" or "Black" or "BwFanart" or "BlurredFanart" ? booklet : Settings.Default.Booklet;
+            var spineLogo = !string.Equals(root?.Element("CaseModThreejsGamesSpineLogo")?.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase);
+            return new Settings(okForm, okYear, okBooklet, spineLogo);
         }
         catch (Exception)
         {

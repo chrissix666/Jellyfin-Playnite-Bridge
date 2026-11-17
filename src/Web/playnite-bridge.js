@@ -1063,37 +1063,48 @@
 
     // One version at a time: Jellyfin renders whatever answer arrives last, so a second pick during a switch waits (only the latest is kept) until
     // the first is done; a switch that never finishes stops blocking after 5 s.
-    // Set when Jellyfin drew another item than the one asked for (a later 12.x that copies params): from then on a pick navigates. Kept in
-    // sessionStorage so the reload that follows remembers it.
-    var inPlaceBroken = false;
-    try {
-        inPlaceBroken = window.sessionStorage.getItem('pbInPlaceBroken') === '1';
-    } catch (e) {
-    }
-
-    // False only when the cover of the detail page names another version of this game than id; no cover yet, no id or an id that is no version of the
-    // game counts as unknown.
-    function renderedFor(view, id, game) {
-        // A card left standing on purpose (same art) still shows the other version's address: that is the intended state, not a failed switch.
-        if (view.pbKeptFor && view.pbKeptFor === id.replace(/-/g, '').toLowerCase()) {
-            return true;
-        }
-        var cover = view.querySelector('.detailImageContainer .cardImageContainer');
-        var url = cover && (cover.getAttribute('data-src') || cover.style.backgroundImage);
-        var m = url && /\/Items\/([0-9a-f]{32})\//i.exec(url);
-        if (!m) {
-            return true;
-        }
-        var shown = m[1].toLowerCase();
-        var wanted = id.replace(/-/g, '').toLowerCase();
-        return shown === wanted || !(game.versions || []).some(function (v) {
-            return v && typeof v.id === 'string' && v.id.replace(/-/g, '').toLowerCase() === shown;
-        });
-    }
+    // TV layout: the version select is Jellyfin's action sheet, a history entry (pushState when it opens, history.go(-1) when it closes). A pick that comes while that pop is
+    // still being handled waits until it has settled; a pick whose view the router has replaced meanwhile is kept and applied by the new view of the same game.
+    var popUntil = 0;
+    var droppedPick = null;
+    (function () {
+        var go = History.prototype.go;
+        var back = History.prototype.back;
+        History.prototype.go = function (n) {
+            if (n < 0) {
+                popUntil = Date.now() + 600;
+            }
+            return go.apply(this, arguments);
+        };
+        History.prototype.back = function () {
+            popUntil = Date.now() + 600;
+            return back.apply(this, arguments);
+        };
+        window.addEventListener('popstate', function () {
+            popUntil = Date.now() + 160;
+        }, true);
+        window.addEventListener('hashchange', function () {
+            popUntil = Math.max(popUntil, Date.now() + 160);
+        }, true);
+    }());
 
     function pickVersion(view, id) {
         // A view the user left (Back) takes no pick: it would rewrite the URL of the page the user is on now.
         if (view.pbLeft || view.classList.contains('hide')) {
+            // A pick that comes right after the TV sheet's pop finds its view replaced by the router: the new view of the same game takes it.
+            if (view.pbPopTries > 0 || Date.now() < popUntil + 1500) {
+                droppedPick = { id: id.replace(/-/g, '').toLowerCase(), at: Date.now() };
+                setTimeout(function () {
+                    var current = document.querySelector('.itemDetailPage.pbGame:not(.hide)');
+                    if (droppedPick && current && current !== view && current.pbGame && current.pbVersion !== droppedPick.id && (current.pbGame.versions || []).some(function (v) {
+                        return v && typeof v.id === 'string' && v.id.replace(/-/g, '').toLowerCase() === droppedPick.id;
+                    })) {
+                        var next = droppedPick.id;
+                        droppedPick = null;
+                        pickVersion(current, next);
+                    }
+                }, 300);
+            }
             return;
         }
         if (view.pbSwitching && Date.now() - view.pbSwitchAt < 5000) {
@@ -1103,6 +1114,17 @@
         view.pbPending = null;
         if (id.replace(/-/g, '').toLowerCase() === view.pbVersion) {
             return;
+        }
+        if (Date.now() < popUntil && (view.pbPopTries = (view.pbPopTries || 0) + 1) < 15) {
+            setTimeout(function () {
+                pickVersion(view, id);
+            }, 60);
+            return;
+        }
+        view.pbPopTries = 0;
+        // A keep window still running from an earlier same-art switch must not put its old card over the one this pick draws.
+        if (view.pbKeepStop) {
+            view.pbKeepStop();
         }
         view.pbKeptFor = null;
         var hash = '#/details?id=' + encodeURIComponent(id) + '&serverId='
@@ -1114,7 +1136,8 @@
         // the live card is put back after Jellyfin's rebuild, ArtworkPlus keeps its case (pbSameArt).
         var same = sameArtVersions(view, view.pbVersion, id);
         var atOnce = same || pickShowsCase(view, id);
-        if (inPlaceBroken || !switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id), same)) {
+        // Other artwork is an ordinary page change (the old picture goes at once, the place stays empty until the new case stands); only a version with the very same card stays in place.
+        if (!same || !switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id), same)) {
             window.location.replace(hash);
         }
     }
@@ -1160,7 +1183,16 @@
     // The live cards (every .detailImageContainer: 12.1 has one for the desktop and one for the mobile layout) are put back where Jellyfin's rebuild puts new ones,
     // in the microtask of the insertion, before a frame is drawn: the node, its decoded picture and whatever ArtworkPlus bound to it stay.
     function keepCardsAcross(view, fromId, toId) {
-        var hosts = [].slice.call(view.querySelectorAll('.detailImageContainer'));
+        if (view.pbKeepStop) {
+            view.pbKeepStop();
+        }
+        var observers = [];
+        view.pbKeepStop = function () {
+            observers.forEach(function (o) { o.disconnect(); });
+            sameArtWindow = null;
+            view.pbKeepStop = null;
+        };
+        var hosts =[].slice.call(view.querySelectorAll('.detailImageContainer'));
         var picture = hosts.map(function (h) { return h.querySelector('.cardImageContainer'); }).filter(Boolean)[0];
         var url = picture && ((picture.style.backgroundImage || '') + (picture.getAttribute('data-src') || ''));
         var tag = url && /[?&]tag=([^&"')]+)/.exec(url);
@@ -1192,6 +1224,7 @@
                 }
             });
             observer.observe(host, { childList: true });
+            observers.push(observer);
             setTimeout(function () {
                 observer.disconnect();
             }, 3000);
@@ -5824,6 +5857,15 @@
                 writeFirst(view.pbFirst, openedFor);
             }
             view.pbVersion = game.version || view.pbVersion;
+            if (droppedPick && Date.now() - droppedPick.at < 3000 && droppedPick.id !== view.pbVersion && (game.versions || []).some(function (v) {
+                return v && typeof v.id === 'string' && v.id.replace(/-/g, '').toLowerCase() === droppedPick.id;
+            })) {
+                var again = droppedPick.id;
+                droppedPick = null;
+                setTimeout(function () {
+                    pickVersion(view, again);
+                }, 400);
+            }
             var config = clientConfiguration(api).catch(function () {
                 return null;
             });
@@ -5869,15 +5911,6 @@
                 };
                 whenRendered(view, staleName, function () {
                     if (view.pbRequest === request) {
-                        if (inPlace && !inPlaceBroken && !overlapped && !view.pbPending && !view.pbLeft && !renderedFor(view, id, game)) {
-                            inPlaceBroken = true;
-                            try {
-                                window.sessionStorage.setItem('pbInPlaceBroken', '1');
-                            } catch (e) {
-                            }
-                            window.location.reload();
-                            return;
-                        }
                         var redo = function () {
                             apply(view, game, dictionary, libraryId, display);
                         };
@@ -6151,6 +6184,29 @@
         });
     }
 
+    // The record of every game detail open (the last 20, this tab, kept in sessionStorage 'pbTrace' and returned by window.PlayniteBridge.trace()): the time each Bridge request took in ms,
+    // 'fail@ms' when it failed, null while it is still pending (that is the request that held the page); limit: the wait limit let Jellyfin draw without it.
+    var BRIDGE_WAIT_MS = 1500;
+    var traceRing = [];
+
+    function traceStore(rec) {
+        if (traceRing.indexOf(rec) < 0) {
+            traceRing.push(rec);
+            if (traceRing.length > 20) {
+                traceRing.shift();
+            }
+        }
+        try {
+            window.sessionStorage.setItem('pbTrace', JSON.stringify(traceRing));
+        } catch (e) {
+        }
+    }
+
+    window.PlayniteBridge = window.PlayniteBridge || {};
+    window.PlayniteBridge.trace = function () {
+        return traceRing.slice();
+    };
+
     function wrapGetItem(api) {
         if (getItemWrapped) {
             return;
@@ -6170,7 +6226,24 @@
                 if (!item || item.Type !== 'Movie' || item.LocationType !== 'Virtual') {
                     return item;
                 }
-                return Promise.all([loadGame(client, item.Id), loadStrings(), clientConfiguration(client)]).then(function (results) {
+                // At most BRIDGE_WAIT_MS for the Bridge's own requests, then Jellyfin gets its item and draws the page; what arrives later is applied when it arrives. One record per
+                // open (traceStore) says which request took how long or is still pending.
+                var rec = { id: String(item.Id).slice(0, 8), at: new Date().toISOString().slice(11, 23), t0: Date.now(), game: null, strings: null, config: null, limit: false, done: null };
+                var took = function (key) {
+                    return function (value) {
+                        rec[key] = Date.now() - rec.t0;
+                        return value;
+                    };
+                };
+                var failed = function (key) {
+                    return function (error) {
+                        rec[key] = 'fail@' + (Date.now() - rec.t0);
+                        throw error;
+                    };
+                };
+                traceStore(rec);
+                var parts = Promise.all([loadGame(client, item.Id).then(took('game'), failed('game')), loadStrings().then(took('strings'), failed('strings')),
+                    clientConfiguration(client).then(took('config'), failed('config'))]).then(function (results) {
                     return Promise.resolve(versionArtwork(item, results[0], results[2], function (id) {
                         return previous.call(client, userId, id);
                     })).then(function () {
@@ -6179,6 +6252,17 @@
                 }, function () {
                     return item;
                 });
+                parts.then(function () {
+                    rec.done = Date.now() - rec.t0;
+                    traceStore(rec);
+                });
+                return Promise.race([parts, new Promise(function (resolve) {
+                    setTimeout(function () {
+                        rec.limit = rec.done === null;
+                        traceStore(rec);
+                        resolve(item);
+                    }, BRIDGE_WAIT_MS);
+                })]);
             }, function (error) {
                 if (itemId) {
                     noteItemFailed(itemId);

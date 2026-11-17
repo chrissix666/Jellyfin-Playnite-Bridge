@@ -861,12 +861,20 @@ public class GamesController : ControllerBase
             appIds.Add(own);
         }
 
-        foreach (var appId in appIds)
+        // a request the browser cancelled (reload, leaving the page) is no error: nothing is answered, nothing is logged
+        try
         {
-            await SteamVideos.Get(appId, _logger, cancellationToken).ConfigureAwait(false);
-        }
+            foreach (var appId in appIds)
+            {
+                await SteamVideos.Get(appId, _logger, cancellationToken).ConfigureAwait(false);
+            }
 
-        return Ok(await _filter.SteamDtos(appIds, cancellationToken).ConfigureAwait(false));
+            return Ok(await _filter.SteamDtos(appIds, cancellationToken).ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return NoContent();
+        }
     }
 
     /// <summary>

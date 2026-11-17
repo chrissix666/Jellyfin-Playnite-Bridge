@@ -146,7 +146,15 @@ public static class IndexHtmlCallback
         + "function relevant(){var h=location.hash||'';if(h.indexOf('#/details')!==0){return false;}var m=/[?&]id=([0-9a-fA-F-]{32,36})/.exec(h);return !(m&&complete&&!known[norm(m[1])]);}"
         + "function mark(n){if(n.nodeType!==1){return;}var l=n.matches&&n.matches(S)?[n]:(n.querySelectorAll?n.querySelectorAll(S):[]);"
         + "for(var i=0;i<l.length;i++){var c=l[i].closest('.card');if(c){c.classList.add('pbBoxCard');var h=c.closest('.detailImageContainer');if(h){h.classList.add('pbBoxHost');}}}}"
-        + "new MutationObserver(function(ms){if(!relevant()){return;}for(var i=0;i<ms.length;i++){var a=ms[i].addedNodes;for(var j=0;j<a.length;j++){mark(a[j]);}}}).observe(document,{childList:true,subtree:true});}catch(e){}})();";
+        + "new MutationObserver(function(ms){if(!relevant()){return;}for(var i=0;i<ms.length;i++){var a=ms[i].addedNodes;for(var j=0;j<a.length;j++){mark(a[j]);}}}).observe(document,{childList:true,subtree:true});"
+        // TV layout: Jellyfin's action sheet is a history entry the router pushes with ITS location and pops with history.go(-1); after an in-place version pick the entry the pop returns to holds the version SHOWN,
+        // so the router sees another location and rebuilds the page. This listener runs before the router's: the popped entry's URL is set to the router's own location for the pop and the shown
+        // version's URL is written back when no pick followed.
+        + "var rurl=null;var pu=History.prototype.pushState;History.prototype.pushState=function(s,t,u){if(document.documentElement.classList.contains('layout-tv')&&typeof u==='string'&&u.indexOf('#/details?id=')>=0){rurl=u;}return pu.apply(this,arguments);};"
+        + "window.addEventListener('popstate',function(){var c=document.querySelector('.itemDetailPage.pbGame:not(.hide)');var m=/[?&]id=([0-9a-fA-F-]+)/.exec(location.hash||'');"
+        + "if(!rurl||!c||!c.pbVersion||!m||norm(m[1])!==c.pbVersion){return;}var r=/[?&]id=([0-9a-fA-F-]+)/.exec(rurl);if(!r||norm(r[1])===c.pbVersion){return;}"
+        + "var shown=location.href,before=c.pbVersion;history.replaceState(history.state,'',rurl);"
+        + "setTimeout(function(){var c2=document.querySelector('.itemDetailPage.pbGame:not(.hide)');if(c2&&c2.pbVersion===before&&!c2.pbSwitching){history.replaceState(history.state,'',shown);}},700);},true);}catch(e){}})();";
 
     /// <summary>Static rules of the marked Box 3D card: no card ground, no placeholder icon or blurhash, no marker, the picture contained at the bottom; plus its size and anchor.</summary>
     public static string BoxRules(Helpers.Box3dDraw draw)

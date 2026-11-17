@@ -237,6 +237,8 @@ public static class ArtworkPlusLinkCore
     /// (kind, depth, source, platform, name, publisher, developer), the drawer and its size/anchor, and the stamps of the two configuration files. Two versions with the same key draw the same
     /// card, so a switch between them leaves it standing. Empty for an id that is no game. Rather too fine than too coarse: a file that cannot be hashed gives its own tag-and-length instead.
     /// </summary>
+    private const string KeyNl = "\n";
+
     public static string ArtKey(GameData data, ImageCache images, Guid id, GameCaseData.Settings settings, string drawer, string configStamp)
     {
         if (Game(data, id) is not GameHit hit)
@@ -244,37 +246,63 @@ public static class ArtworkPlusLinkCore
             return string.Empty;
         }
 
+        // the key holds exactly what the case or the picture drawn instead of it shows; the background (backdrops),
+        // clearart and the like change on their own by the 2D artwork rules and are no part of it.
         var game = hit.Game!;
         static string Of(string? path) => path is null ? "-" : ImageCache.ContentKey(path) ?? ("t:" + (ImageCache.Tag(path) ?? "?"));
         var text = new StringBuilder();
-        text.Append("drawer=").Append(drawer).Append('\n').Append("stamp=").Append(configStamp).Append('\n');
+        text.Append("drawer=").Append(drawer).Append(KeyNl).Append("stamp=").Append(configStamp).Append(KeyNl);
         var rows = GameCaseData.Build(game.Name, game.Platforms, game.Year, game.Publishers, game.Developers, images.GameFolder(game),
             CasePart(data, images, id, "front"), CasePart(data, images, id, "back"), CasePart(data, images, id, "spine"),
             CasePart(data, images, id, "disc"), CasePart(data, images, id, "logo"), settings, Of);
-        foreach (var row in rows)
-        {
-            // the picture rows carry a path as their value: only the content hash counts
-            var isPicture = row[0] is "front" or "back" or "spine" or "disc" or "logo";
-            text.Append(row[0]).Append('=').Append(isPicture ? string.Empty : row[1]).Append('|').Append(row.Length > 2 ? row[2] : string.Empty).Append('\n');
-        }
-
-        var cover = images.Image(hit.Group!, game, ImageType.Primary);
         var box = CasePart(data, images, id, "box3d");
-        if (cover is null && box is null && rows.Length == 0)
-        {
-            // Nothing to compare (no cover, no Box 3D, no case): no key, so two such versions are never taken for the same picture.
-            return string.Empty;
-        }
-
-        text.Append("cover=").Append(Of(cover)).Append('\n');
-        text.Append("box3d=").Append(Of(box)).Append('\n');
-        // The backdrops matter to the card only as the booklet's Fanart of a 3D case; for a cover or a Box 3D they are another artwork (own rule, canonical by content).
         if (rows.Length > 0)
         {
-            foreach (var backdrop in VirtualItemsFilter.TaggedBackdrops(images, hit.Group!, game))
+            // A 3D case: its shape, depth and platform, the pictures it wraps (front, back, spine; the disc picture on a disc case) ...
+            string Row(string name) => rows.FirstOrDefault(r => r[0] == name)?[1] ?? string.Empty;
+            var disc = Row("kind") == "disc";
+            var spine = CasePart(data, images, id, "spine");
+            var logo = CasePart(data, images, id, "logo");
+            text.Append("case=").Append(Row("kind")).Append('|').Append(Row("depth")).Append('|').Append(Row("platform")).Append(KeyNl);
+            foreach (var part in new[] { "front", "back", "spine" })
             {
-                text.Append("backdrop=").Append(Of(backdrop.Path)).Append('\n');
+                text.Append(part).Append('=').Append(Of(CasePart(data, images, id, part))).Append(KeyNl);
             }
+
+            if (disc)
+            {
+                text.Append("disc=").Append(Of(CasePart(data, images, id, "disc"))).Append(KeyNl);
+            }
+
+            // ... the booklet of a disc case (Booklet != Off): its logo, the first two distinct publisher / developer names, and the first backdrop when the booklet's ground is fanart ...
+            if (disc && settings.Booklet != "Off")
+            {
+                text.Append("booklet=").Append(settings.Booklet).Append('|').Append(Of(logo)).Append('|')
+                    .Append(string.Join("   ·   ", (game.Publishers ?? Array.Empty<string>()).Concat(game.Developers ?? Array.Empty<string>()).Distinct().Take(2))).Append(KeyNl);
+                if (settings.Booklet is "BwFanart" or "BlurredFanart")
+                {
+                    text.Append("ground=").Append(Of(VirtualItemsFilter.TaggedBackdrops(images, hit.Group!, game).Select(b => b.Path).FirstOrDefault())).Append(KeyNl);
+                }
+            }
+
+            // ... and the substitute spine (no spine picture): the logo when SpineLogo is on and there is one, else the name.
+            if (spine is null)
+            {
+                text.Append("spine=").Append(settings.SpineLogo && logo is not null ? "logo:" + Of(logo) : "name:" + (game.Name ?? string.Empty)).Append(KeyNl);
+            }
+        }
+        else if (box is not null)
+        {
+            text.Append("box3d=").Append(Of(box)).Append(KeyNl);
+        }
+        else if (images.Image(hit.Group!, game, ImageType.Primary) is { } cover)
+        {
+            text.Append("cover=").Append(Of(cover)).Append(KeyNl);
+        }
+        else
+        {
+            // Nothing to compare (no case, no Box 3D, no cover): no key, so two such versions are never taken for the same picture.
+            return string.Empty;
         }
 
         return Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(text.ToString())))[..20].ToLowerInvariant();

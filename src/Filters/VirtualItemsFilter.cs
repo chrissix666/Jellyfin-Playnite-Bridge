@@ -241,6 +241,11 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
                 return;
             }
         }
+        catch (OperationCanceledException) when (context.HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            // the browser cancelled the request (reload, leaving the page): no virtual answer is needed and it is no failure
+            return;
+        }
         catch (Exception ex)
         {
             // Once per changed failure, not once per request.

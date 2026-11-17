@@ -296,7 +296,7 @@ public abstract class BuildGameImagesTaskBase
         for (var i = 0; i < plan.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            switch (await GenerateTrickplay(plan[i], cancellationToken).ConfigureAwait(false))
+            switch (await GenerateTrickplay(plan[i], probes, cancellationToken).ConfigureAwait(false))
             {
                 case true:
                     created++;
@@ -324,7 +324,7 @@ public abstract class BuildGameImagesTaskBase
     /// the manager and its database): true = created; false = skipped (missing file, no video stream, runtime unknown or shorter than the interval,
     /// no width, or the folder appeared meanwhile); null = failed (one warning). A cancellation is passed on.
     /// </summary>
-    private async Task<bool?> GenerateTrickplay(GameExtra extra, CancellationToken cancellationToken)
+    private async Task<bool?> GenerateTrickplay(GameExtra extra, MediaInfoCache probes, CancellationToken cancellationToken)
     {
         var options = _config.Configuration.TrickplayOptions;
         var interval = TrickplayGenerator.Interval(options.Interval);
@@ -337,7 +337,13 @@ public abstract class BuildGameImagesTaskBase
             }
 
             var source = new MediaSourceInfo { Path = extra.Path, Protocol = MediaProtocol.File, VideoType = VideoType.VideoFile };
-            var info = await _mediaEncoder.GetMediaInfo(new MediaInfoRequest { MediaSource = source, MediaType = DlnaProfileType.Video }, cancellationToken).ConfigureAwait(false);
+            // the same probe answer the page and the still frames use (stored answer first, one probe per file and state), no second ffprobe for a video that is known
+            var info = await probes.Get(extra.Path, ImageCache.Tag(extra.Path) ?? string.Empty).ConfigureAwait(false);
+            if (info is null)
+            {
+                return null;
+            }
+
             var stream = info.MediaStreams?.FirstOrDefault(s => s.Type == MediaStreamType.Video);
             var widths = TrickplayGenerator.Widths(options.WidthResolutions, stream?.Width);
             if (stream is null || info.RunTimeTicks is not long ticks || ticks < TimeSpan.FromMilliseconds(interval).Ticks || widths.Count == 0)
