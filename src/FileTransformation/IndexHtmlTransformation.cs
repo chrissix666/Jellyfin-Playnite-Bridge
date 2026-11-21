@@ -135,7 +135,11 @@ public static class IndexHtmlCallback
     /// id is certainly no game (movie, series, person) is left alone.
     /// </summary>
     public const string BootScript =
-        "(function(){try{var ls=window.localStorage,P=window.PlayniteBridge=window.PlayniteBridge||{},known={},complete=false,hold=null;"
+        // (0) The web client script itself, as a deferred script written right here: deferred scripts run in document order, so it runs before every bundle of
+        // Jellyfin (all deferred, after this head) and its listeners and wrappers stand at Jellyfin's first render - also on a cold load of a game page (F5, link).
+        // The deferred tag at the end of the body loads it a second time; that copy does nothing (window.PlayniteBridgeLoaded).
+        "(function(){try{if(document.readyState==='loading'){document.write('<script defer src=\"../PlayniteBridge/script.js\"></script>');}}catch(e){}})();"
+        + "(function(){try{var ls=window.localStorage,P=window.PlayniteBridge=window.PlayniteBridge||{},known={},complete=false,hold=null;"
         + "var norm=function(i){return String(i||'').replace(/-/g,'').toLowerCase();};"
         + "try{(JSON.parse(ls.getItem('pbKnownGames'))||[]).forEach(function(k){known[k]=1;});complete=ls.getItem('pbGamesComplete')==='1'&&Object.keys(known).length>0;}catch(e){}"
         + "try{hold=JSON.parse(ls.getItem('pbBox3dHold'));}catch(e){}"

@@ -5,6 +5,13 @@
 (function () {
     'use strict';
 
+    // Loaded twice: early by the boot script in the head (before Jellyfin's bundles, so the first page is built with this script) and by the deferred tag
+    // at the end of the body. The second copy does nothing.
+    if (window.PlayniteBridgeLoaded) {
+        return;
+    }
+    window.PlayniteBridgeLoaded = true;
+
     // Corners of the version marker (MarkerPosition); top left is the default.
     var corners = {
         TopRight: 'left:auto;right:0.3em',
@@ -793,8 +800,10 @@
     var metadataClasses = { 2: 'pbMetaDirector', 4: 'pbMetaStudio', 5: 'pbMetaGenre' };
 
     function metadataWrappers(group) {
+        // 12.1 puts the Collections row (a detailsGroupItem of its own, not one of the six wrappers) in front of the wrappers once its answer is there; it may already stand
+        // when we look (a page that Jellyfin did not render again), and must not hide the six
         var divs = group ? [].filter.call(group.children, function (child) {
-            return !child.classList.contains('pbRow');
+            return !child.classList.contains('pbRow') && !child.classList.contains('detailsGroupItem');
         }) : [];
         if (divs.length !== 6 || divs.some(function (div) {
             return div.tagName !== 'DIV';
@@ -860,7 +869,12 @@
             for (var r = 0; r < rows.length; r++) {
                 rows[r].parentNode.removeChild(rows[r]);
             }
-            var template = group.querySelector('.detailsGroupItem:not(.pbRow)');
+            // the markup of an item of the six wrappers (the Collections row in front of them has none of the wrappers' classes)
+            var template = null;
+            for (var w = 0; w < wrappers.length && !template; w++) {
+                template = wrappers[w].querySelector('.detailsGroupItem');
+            }
+            template = template || group.querySelector('.detailsGroupItem:not(.pbRow)');
             if (before.length) {
                 group.insertBefore(metadataRow(template, before[0]), first);
             }
@@ -968,19 +982,26 @@
                 next = next && next.nextElementSibling;
             }
             if (!rowsOk) {
-                var rows = group.querySelectorAll('.pbRow');
-                for (var r = 0; r < rows.length; r++) {
-                    rows[r].parentNode.removeChild(rows[r]);
-                }
+                // a row that already shows what it should stays (same node, nothing redrawn); only a row that differs is written, the rest of ours goes
+                var keptRows = [];
                 if (before.length) {
-                    genres.parentNode.insertBefore(row(before[0][0], before[0][1], before[0][2]), genres);
+                    var prior = genres.previousElementSibling;
+                    var added = sameRow(prior, before[0]) ? prior : genres.parentNode.insertBefore(row(before[0][0], before[0][1], before[0][2]), genres);
+                    keptRows.push(added);
                 }
                 var last = studios;
                 after.forEach(function (spec) {
-                    var elem = row(spec[0], spec[1], spec[2]);
-                    last.parentNode.insertBefore(elem, last.nextSibling);
+                    var following = last.nextElementSibling;
+                    var elem = sameRow(following, spec) ? following : last.parentNode.insertBefore(row(spec[0], spec[1], spec[2]), last.nextSibling);
+                    keptRows.push(elem);
                     last = elem;
                 });
+                var rows = group.querySelectorAll('.pbRow');
+                for (var r = 0; r < rows.length; r++) {
+                    if (keptRows.indexOf(rows[r]) < 0) {
+                        rows[r].parentNode.removeChild(rows[r]);
+                    }
+                }
             }
 
             setText(view.querySelector('.directorsLabel'), translate(dictionary, view.querySelectorAll('.directors a').length > 1 ? 'Developers' : 'LabelDeveloper'));
@@ -1067,6 +1088,31 @@
     // still being handled waits until it has settled; a pick whose view the router has replaced meanwhile is kept and applied by the new view of the same game.
     var popUntil = 0;
     var droppedPick = null;
+
+    // Pick log (Fallout 2 hunt, 2026-11-17): one line per decision of the pick path, read from the console or by a probe as window.__pbPickLog.
+    function pickLog(view, what, id) {
+        try {
+            var log = window.__pbPickLog = window.__pbPickLog || [];
+            var select = view && view.querySelector ? view.querySelector('.selectSource') : null;
+            log.push({
+                t: Math.round(performance.now()), what: what, id: id ? String(id).replace(/-/g, '').toLowerCase().slice(0, 8) : '',
+                switching: !!(view && view.pbSwitching), pending: view && view.pbPending ? String(view.pbPending).slice(0, 8) : '',
+                version: view && view.pbVersion ? String(view.pbVersion).slice(0, 8) : '', select: select ? String(select.value).slice(0, 8) : '',
+                viewshows: window.__pbViewshows || 0
+            });
+            if (log.length > 400) {
+                log.splice(0, log.length - 400);
+            }
+        } catch (e) { /* a log must never stop a pick */ }
+    }
+
+    // The select shows the version the page shows once no pick waits (a pick that was dropped or merged must not leave the select on another version).
+    function syncSelect(view) {
+        var select = view && view.querySelector ? view.querySelector('.selectSource') : null;
+        if (select && !view.pbPending && view.pbVersion && select.value !== view.pbVersion && [].some.call(select.options, function (o) { return o.value === view.pbVersion; })) {
+            select.value = view.pbVersion;
+        }
+    }
     (function () {
         var go = History.prototype.go;
         var back = History.prototype.back;
@@ -1088,7 +1134,7 @@
         }, true);
     }());
 
-    function pickVersion(view, id) {
+    function pickVersion(view, id, retry) {
         // A view the user left (Back) takes no pick: it would rewrite the URL of the page the user is on now.
         if (view.pbLeft || view.classList.contains('hide')) {
             // A pick that comes right after the TV sheet's pop finds its view replaced by the router: the new view of the same game takes it.
@@ -1107,17 +1153,26 @@
             }
             return;
         }
+        // one entry per pick: the 60 ms retries behind the TV sheet's pop are logged as 'pick-wait' (the study maps the k-th 'pick' to the k-th switch)
+        pickLog(view, retry ? 'pick-wait' : 'pick', id);
+        if (!retry) {
+            raiseSignal(view);
+        }
         if (view.pbSwitching && Date.now() - view.pbSwitchAt < 5000) {
             view.pbPending = id;
+            pickLog(view, 'queued', id);
             return;
         }
         view.pbPending = null;
         if (id.replace(/-/g, '').toLowerCase() === view.pbVersion) {
+            pickLog(view, 'dropped-equal', id);
+            pickSignal = null;
+            syncSelect(view);
             return;
         }
         if (Date.now() < popUntil && (view.pbPopTries = (view.pbPopTries || 0) + 1) < 15) {
             setTimeout(function () {
-                pickVersion(view, id);
+                pickVersion(view, id, true);
             }, 60);
             return;
         }
@@ -1126,6 +1181,10 @@
         if (view.pbKeepStop) {
             view.pbKeepStop();
         }
+        releaseHolds(view);
+        quietEnd(view);
+        stopRows(view);
+        stopBackdrop(view);
         view.pbKeptFor = null;
         var hash = '#/details?id=' + encodeURIComponent(id) + '&serverId='
             + encodeURIComponent(routeParam('details', 'serverId') || window.ApiClient.serverId());
@@ -1136,8 +1195,10 @@
         // the live card is put back after Jellyfin's rebuild, ArtworkPlus keeps its case (pbSameArt).
         var same = sameArtVersions(view, view.pbVersion, id);
         var atOnce = same || pickShowsCase(view, id);
-        // Other artwork is an ordinary page change (the old picture goes at once, the place stays empty until the new case stands); only a version with the very same card stays in place.
-        if (!same || !switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id), same)) {
+        // Every pick stays on the standing page (2026-11-17, contract-version-switch-parts): ArtworkPlus gets the part keys and exchanges what differs or rebuilds in place;
+        // only a view without a params object (no standing page to switch) navigates.
+        if (!switchInPlace(view, id, hash, !atOnce, atOnce, atOnce && pickMayBeArtworkPlus(view, id), same)) {
+            pickLog(view, 'navigate', id);
             window.location.replace(hash);
         }
     }
@@ -1162,6 +1223,8 @@
     // While a switch to a version with the same art runs, Jellyfin builds the new card's picture address from the new version's item; it is asked for the
     // old version's address instead (the same picture, already in the browser's cache), so the rebuilt card the live one replaces costs no request.
     var sameArtWindow = null;
+    var sameBackdropWindow = null;   // { from, to } while Jellyfin renders a switch between versions with the same backdrop set
+    var backdropUrls = {};           // 'versionId:index' -> the backdrop url Jellyfin was last given for it
     var scaledUrlWrapped = false;
 
     function wrapScaledImageUrl(api) {
@@ -1172,12 +1235,588 @@
         var proto = Object.getPrototypeOf(api);
         var previous = proto.getScaledImageUrl;
         proto.getScaledImageUrl = function (itemId, options) {
+            if (options && options.type === 'Backdrop') {
+                // Jellyfin's backdrop (setBackdrops) does nothing when the url list equals the one showing. Two versions with the same backdrop set (parts.backdrops) are asked for
+                // the URLs the version switched from was asked for, so its backdrop stays instead of being set again and faded in (the url holds the item id, not the content).
+                var bid = String(itemId).replace(/-/g, '').toLowerCase();
+                var held = sameBackdropWindow && bid === sameBackdropWindow.to ? backdropUrls[sameBackdropWindow.from + ':' + options.index] : null;
+                if (held) {
+                    return held;
+                }
+                if (sameBackdropWindow && bid === sameBackdropWindow.to) {
+                    pickLog(null, 'bd-memo-miss:' + options.index, bid);
+                }
+                var made = previous.apply(this, arguments);
+                if (Object.keys(backdropUrls).length > 300) {
+                    backdropUrls = {};
+                }
+                backdropUrls[bid + ':' + options.index] = made;
+                return made;
+            }
             var now = sameArtWindow;
             if (now && Date.now() < now.until && now.tag && options && (!options.type || options.type === 'Primary') && String(itemId).replace(/-/g, '').toLowerCase() === now.to) {
                 return previous.call(this, now.from, Object.assign({}, options, { tag: now.tag }));
             }
             return previous.apply(this, arguments);
         };
+    }
+
+    // ---- Version switch on the standing page: what Jellyfin's full render (switchInPlace dispatches a non-restored viewshow) must not show (2026-11-17) ----
+    // Jellyfin's lazy loader puts `lazy-hidden` on a picture it fills and fades it in (a replay even for the very same bytes under another URL). A picture held here keeps
+    // its look (animation none, opaque) until the loader is done with it; then the fade classes go BEFORE the hold is lifted, so lifting it cannot start the fade.
+    // The end is the loader's own signal (`lazy-hidden` appeared and went), never a time; the ceiling only cleans up when the loader never touches the picture.
+    var QUIET_STYLE_ID = 'pbQuietStyle';
+    // Clean-up only: Jellyfin's render came 0.7-4.6 s after a pick in the measurements (later in the first block); a hold ends by its signal, the next pick also ends it.
+    var SWITCH_CEILING_MS = 15000;
+
+    function ensureQuietStyle() {
+        if (!document.getElementById(QUIET_STYLE_ID)) {
+            var style = document.createElement('style');
+            style.id = QUIET_STYLE_ID;
+            style.textContent = 'html.pbQuiet .docspinner{display:none !important}html.pbBdKeep .backdropImage{animation:none !important}html.pbBdKeep #itemBackdrop{animation:none !important;opacity:1 !important}';
+            document.head.appendChild(style);
+        }
+    }
+
+    function stripLazyFade(el) {
+        el.classList.remove('lazy-image-fadein', 'lazy-image-fadein-fast');
+        el.style.removeProperty('animation');
+        el.style.removeProperty('opacity');
+    }
+
+    // el: the picture; ceiling: ms; opts.keep: hold its look until settled (else only watch); opts.opaque: also keep it opaque; opts.onSettle: called once when done.
+    function holdLazy(view, el, ceiling, opts) {
+        if (!el || typeof MutationObserver !== 'function' || (el.pbHolding && opts && opts.keep)) {
+            return;
+        }
+        opts = opts || {};
+        var hold = { el: el, done: false };
+        el.pbHolding = true;
+        var seen = false;
+        var obs = new MutationObserver(function () {
+            var hidden = el.classList.contains('lazy-hidden');
+            if (hidden) {
+                seen = true;
+            } else if (seen) {
+                finish();
+            }
+        });
+        var timer = setTimeout(function () { finish(); }, ceiling);
+        function finish() {
+            if (hold.done) {
+                return;
+            }
+            hold.done = true;
+            el.pbHolding = false;
+            clearTimeout(timer);
+            obs.disconnect();
+            el.pbHeldOpaque = false;
+            if (opts.keep) {
+                stripLazyFade(el);
+            }
+            if (opts.onSettle) {
+                opts.onSettle();
+            }
+        }
+        hold.finish = finish;
+        if (opts.keep) {
+            el.style.setProperty('animation', 'none', 'important');
+            if (opts.opaque) {
+                el.style.setProperty('opacity', '1', 'important');
+                el.pbHeldOpaque = true;
+            }
+        }
+        obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+        (view.pbHolds = view.pbHolds || []).push(hold);
+    }
+
+    function releaseHolds(view) {
+        var holds = view.pbHolds || [];
+        view.pbHolds = [];
+        holds.forEach(function (h) { h.finish(); });
+    }
+
+    // The spinner stays hidden and the primary block keeps its height from the pick until Jellyfin's render has ended (loading.hide() takes `mdlSpinnerActive` off the
+    // spinner); the page then changes its height once, not in steps.
+    function quietStart(view) {
+        quietEnd(view);
+        ensureQuietStyle();
+        document.documentElement.classList.add('pbQuiet');
+        var block = view.querySelector('.detailPagePrimaryContent');
+        if (block && block.offsetHeight > 0) {
+            block.style.minHeight = block.offsetHeight + 'px';
+            view.pbQuietBlock = block;
+        }
+        view.pbQuietTimer = setTimeout(function () { quietEnd(view); }, SWITCH_CEILING_MS);
+        // a real navigation away (not our replaceState) ends it at once: the spinner of the next page must show
+        view.pbQuietLeave = function () { quietEnd(view); };
+        window.addEventListener('hashchange', view.pbQuietLeave);
+        window.addEventListener('popstate', view.pbQuietLeave);
+    }
+
+    function quietWatch(view) {
+        if (typeof MutationObserver !== 'function' || !view.pbQuietTimer) {
+            return;
+        }
+        var watchSpinner = function (spinner) {
+            if (view.pbQuietObs) {
+                view.pbQuietObs.disconnect();
+            }
+            view.pbQuietObs = new MutationObserver(function () {
+                if (!spinner.classList.contains('mdlSpinnerActive')) {
+                    quietEnd(view);
+                }
+            });
+            view.pbQuietObs.observe(spinner, { attributes: true, attributeFilter: ['class'] });
+        };
+        var spinner = document.querySelector('.docspinner');
+        if (spinner) {
+            watchSpinner(spinner);
+            return;
+        }
+        // Jellyfin creates the spinner at its first loading.show(): wait for it, then watch it
+        view.pbQuietObs = new MutationObserver(function () {
+            var created = document.querySelector('.docspinner');
+            if (created) {
+                watchSpinner(created);
+            }
+        });
+        view.pbQuietObs.observe(document.body, { childList: true });
+    }
+
+    function quietEnd(view) {
+        clearTimeout(view.pbQuietTimer);
+        view.pbQuietTimer = null;
+        if (view.pbQuietObs) {
+            view.pbQuietObs.disconnect();
+            view.pbQuietObs = null;
+        }
+        document.documentElement.classList.remove('pbQuiet');
+        sameBackdropWindow = null;
+        if (view.pbQuietLeave) {
+            window.removeEventListener('hashchange', view.pbQuietLeave);
+            window.removeEventListener('popstate', view.pbQuietLeave);
+            view.pbQuietLeave = null;
+        }
+        if (view.pbQuietBlock) {
+            view.pbQuietBlock.style.removeProperty('min-height');
+            view.pbQuietBlock = null;
+        }
+    }
+
+    // Jellyfin's tile rows (similar items, cast, scenes ...) are written again by its render (innerHTML), so every picture of them fades in as a new node. When the new row holds
+    // the same cards with the same pictures as the one that stood, the old nodes (decoded, nothing to fade) are put back in the microtask of the write, before a frame is drawn.
+    // Our own rows (ids starting with pb) are not touched. The watch ends with the next pick or the ceiling.
+    function rowSignature(box) {
+        return [].map.call(box.querySelectorAll('[data-id], .cardImageContainer'), function (el) {
+            if (el.classList.contains('cardImageContainer')) {
+                // 'none' (Jellyfin's emptyImageElement of a card that never loaded) must not stick to the tag of the data-src before it
+                var u = (el.getAttribute('data-src') || '') + (el.style.backgroundImage === 'none' ? '' : el.style.backgroundImage || '');
+                var m = /\/Items\/([^\/]+)\/Images\/(\w+)[^?"')]*\?[^"')]*?tag=([^&"')]+)/.exec(u);
+                return m ? m[1] + ':' + m[2] + ':' + m[3] : 'noimg';
+            }
+            return 'id:' + el.getAttribute('data-id');
+        }).join('|');
+    }
+
+    function pinPicture(pic, stops) {
+        if (pic.pbPinned || typeof MutationObserver !== 'function') {
+            return;
+        }
+        var bg = pic.style.backgroundImage;
+        if (!bg || bg === 'none') {
+            return;
+        }
+        var raw = bg.slice(4, -1).replace(/"/g, '');
+        pic.pbPinned = true;
+        var obs = new MutationObserver(function () {
+            var now = pic.style.backgroundImage;
+            // exactly what Jellyfin's emptyImageElement leaves behind: no image, the same address in data-src, lazy-hidden; a different address is a real change and stays
+            if ((!now || now === 'none') && pic.getAttribute('data-src') === raw) {
+                pic.style.backgroundImage = bg;
+                pic.removeAttribute('data-src');
+                pic.classList.remove('lazy-hidden', 'lazy-image-fadein', 'lazy-image-fadein-fast');
+                pic.style.removeProperty('animation');
+                var canvas = pic.previousSibling;
+                if (pic.classList.contains('blurhashed') && canvas && canvas.tagName === 'CANVAS') {
+                    canvas.classList.add('lazy-hidden');
+                }
+                var padder = pic.parentNode && pic.parentNode.querySelector && pic.parentNode.querySelector('.cardPadder');
+                if (padder) {
+                    padder.classList.add('lazy-hidden-children');
+                }
+            }
+        });
+        obs.observe(pic, { attributes: true, attributeFilter: ['style', 'class', 'data-src'] });
+        stops.push(function () {
+            obs.disconnect();
+            pic.pbPinned = false;
+        });
+    }
+
+    function cardSig(card) {
+        var id = card.getAttribute && card.getAttribute('data-id');
+        if (!id) {
+            return '';
+        }
+        var pic = card.querySelector && card.querySelector('.cardImageContainer');
+        var u = pic ? (pic.getAttribute('data-src') || '') + (pic.style.backgroundImage === 'none' ? '' : pic.style.backgroundImage || '') : '';
+        var m = /\/Items\/([^\/]+)\/Images\/(\w+)[^?"')]*\?[^"')]*?tag=([^&"')]+)/.exec(u);
+        return id + '|' + (m ? m[1] + ':' + m[2] + ':' + m[3] : 'noimg');
+    }
+
+    // 10.10.7 writes the genre, developer and publisher links again at every version switch (new <a> nodes, 'emby-button' added after they stand: their weight, borders and radii
+    // transition for 0.2 s, measured 2026-11-20 on Fallout 3: font-weight 400 to 600 over ~300 ms). When the new links name the same things (text and the id in the href), the old nodes
+    // are put back in the microtask of the write, before a frame is drawn; other links stay as Jellyfin wrote them.
+    function linkSignature(box) {
+        return [].map.call(box.querySelectorAll('a'), function (link) {
+            var href = link.getAttribute('href') || '';
+            var query = new URLSearchParams(href.indexOf('?') !== -1 ? href.substring(href.indexOf('?') + 1) : '');
+            return link.textContent + '|' + (query.get('genreId') || query.get('personId') || query.get('studioId') || query.get('id') || '');
+        }).join('\n');
+    }
+
+    function keepLinks(view) {
+        if (view.pbLinkKeep || typeof MutationObserver !== 'function') {
+            return;
+        }
+        view.pbLinkKeep = true;
+        ['.genres', '.directors', '.studios'].forEach(function (selector) {
+            var box = view.querySelector('.itemDetailsGroup ' + selector);
+            if (!box) {
+                return;
+            }
+            var saved = [].slice.call(box.childNodes);
+            var signature = linkSignature(box);
+            new MutationObserver(function () {
+                if (saved.length && saved.every(function (node) { return node.parentNode !== box; }) && box.childNodes.length && signature && linkSignature(box) === signature) {
+                    box.replaceChildren.apply(box, saved);
+                    pickLog(view, 'links-restored:' + selector, '');
+                    return;
+                }
+                saved = [].slice.call(box.childNodes);
+                signature = linkSignature(box);
+            }).observe(box, { childList: true });
+        });
+    }
+
+    function keepRows(view) {
+        stopRows(view);
+        if (typeof MutationObserver !== 'function') {
+            return;
+        }
+        var stops = [];
+        view.pbRowOps = 0;
+        [].forEach.call(view.querySelectorAll('.itemsContainer'), function (box) {
+            if (!box.children.length) {
+                return;
+            }
+            // every picture the rows show keeps its image through the switch (also rows that are not written again, like the collections row)
+            [].forEach.call(box.querySelectorAll('.cardImageContainer'), function (pic) {
+                pinPicture(pic, stops);
+            });
+            var saved = [].slice.call(box.children);
+            var signature = rowSignature(box);
+            var name = (box.closest('[id]') || {}).id || box.className;
+            if (!signature) {
+                return;
+            }
+            pickLog(view, 'rows-watch:' + name + ':' + saved.length, '');
+            var restored = 0;
+            var obs = new MutationObserver(function () {
+                // Circuit breaker: more than 80 calls of all row watches in one pick = something writes the rows in a loop; every watch of the page ends
+                if (++view.pbRowOps > 80) {
+                    pickLog(view, 'rows-breaker', '');
+                    stopRows(view);
+                    return;
+                }
+                // Only when the row's cards were REPLACED (none of the saved nodes is in the row any more). Extra nodes that another observer puts in (our dividers and labels in
+                // #specialsContent) or takes out again never start a put-back: that was a loop (the put-back removed the dividers, their observer added them, and again).
+                var replaced = saved.every(function (node) { return node.parentNode !== box; });
+                if (box.children.length && replaced) {
+                    // the "More like this" row stays as it stands at a version pick (user 2026-11-18): Jellyfin's newly shuffled list is not taken, the cards stay (same nodes, no fade)
+                    if (rowSignature(box) === signature || name === 'similarCollapsible') {
+                        // At most 3 put-backs per row and pick: something that writes the row again after each one (a loop with another observer) must not run for the whole ceiling
+                        if (++restored > 3) {
+                            obs.disconnect();
+                            pickLog(view, 'rows-gave-up:' + name, '');
+                            return;
+                        }
+                        // Jellyfin writes a row more than once within a pick (measured, similar row about 300 ms after the first): the watch lives to the ceiling or the next pick,
+                        // every replacing write is answered (3 at most), the loop through other observers is closed by the condition above
+                        // a node inserted again restarts its CSS animation while it still has Jellyfin's fade class (its animationend handler never takes it off)
+                        saved.forEach(function (card) {
+                            [].forEach.call(card.querySelectorAll('.lazy-image-fadein, .lazy-image-fadein-fast'), stripLazyFade);
+                            if (card.classList && (card.classList.contains('lazy-image-fadein') || card.classList.contains('lazy-image-fadein-fast'))) {
+                                stripLazyFade(card);
+                            }
+                        });
+                        box.replaceChildren.apply(box, saved);
+                        pickLog(view, 'rows-restored:' + name + ':' + restored, '');
+                    } else {
+                        // Other cards in part (the similar row of one version lists the other version, where the other lists the first): the cards both rows have are the old
+                        // nodes again, only the new ones are new (and fade in, as other content does)
+                        if (++restored > 3) {
+                            obs.disconnect();
+                            pickLog(view, 'rows-gave-up:' + name, '');
+                            return;
+                        }
+                        var old = {};
+                        saved.forEach(function (card) {
+                            var key = cardSig(card);
+                            if (key && !old[key]) {
+                                old[key] = card;
+                            }
+                        });
+                        var kept = 0;
+                        var total = 0;
+                        [].slice.call(box.children).forEach(function (card) {
+                            if (card.getAttribute && card.getAttribute('data-id')) {
+                                total++;
+                            }
+                            var key = cardSig(card);
+                            if (key && old[key] && old[key].parentNode !== box) {
+                                var own = old[key];
+                                old[key] = null;
+                                [].forEach.call(own.querySelectorAll('.lazy-image-fadein, .lazy-image-fadein-fast'), stripLazyFade);
+                                box.replaceChild(own, card);
+                                kept++;
+                            }
+                        });
+                        // a card with the same picture and the same texts but another id (the special of the other version): the old node stays, the data attributes follow
+                        var unused = saved.filter(function (card) { return card.parentNode !== box; });
+                        [].slice.call(box.children).forEach(function (card) {
+                            if (saved.indexOf(card) >= 0 || !card.getAttribute) {
+                                return;
+                            }
+                            if (!card.getAttribute('data-id')) {
+                                return;
+                            }
+                            // the picture by its tag (the item id in the address is the other version's), the title by the first text line (the Steam label under it is written later)
+                            var tagOf = function (c) { var k = cardSig(c).split('|')[1] || ''; return k === 'noimg' ? '' : k.split(':').pop(); };
+                            var titleOf = function (c) { return ((c.querySelector && c.querySelector('.cardText') || {}).textContent || '').replace(/\s+/g, ' ').trim(); };
+                            var key = tagOf(card);
+                            var text = titleOf(card);
+                            for (var i = 0; key && i < unused.length; i++) {
+                                var cand = unused[i];
+                                if (cand.tagName === card.tagName && tagOf(cand) === key && titleOf(cand) === text) {
+                                    [].forEach.call(card.attributes, function (attribute) {
+                                        if (attribute.name.indexOf('data-') === 0) {
+                                            cand.setAttribute(attribute.name, attribute.value);
+                                        }
+                                    });
+                                    [].forEach.call(cand.querySelectorAll('.lazy-image-fadein, .lazy-image-fadein-fast'), stripLazyFade);
+                                    box.replaceChild(cand, card);
+                                    unused.splice(i, 1);
+                                    kept++;
+                                    break;
+                                }
+                            }
+                        });
+                        pickLog(view, 'rows-merged:' + name + ':' + kept + '/' + total, '');
+                        // later writes of this row are compared with what it shows now
+                        saved = [].slice.call(box.children);
+                        signature = rowSignature(box);
+                    }
+                }
+            });
+            obs.observe(box, { childList: true });
+            stops.push(function () { obs.disconnect(); });
+        });
+        view.pbRowStops = stops;
+        // each row's watch ends at the write of the row (event); this ceiling (Jellyfin writes its rows within 0.7-4.6 s of a pick, measured) only covers rows it never writes
+        view.pbRowTimer = setTimeout(function () { stopRows(view); }, 8000);
+    }
+
+    // Fallback for equal backdrop sets: if Jellyfin still writes a NEW .backdropImage (its fade-in restarts), the new element goes again before a frame is drawn and the one
+    // that stands stays. Ends with the quiet window (quietEnd) or the next pick.
+    function backdropIdentity(url) {
+        // the address without the item id (the id of the version is in it, the picture is named by type, index and tag)
+        var m = /\/Items\/[^\/]+\/Images\/(Backdrop)\/(\d+)[^?]*\?[^"']*?tag=([^&"']+)/.exec(url || '');
+        return m ? m[1] + '/' + m[2] + '/' + m[3] : '';
+    }
+
+    function keepBackdrop(view) {
+        stopBackdrop(view);
+        var container = document.querySelector('.backdropContainer');
+        if (!container || typeof MutationObserver !== 'function') {
+            return;
+        }
+        // Jellyfin sets the backdrop when its picture has loaded, after the render ended: this guard has its own end (the next pick, or ceiling)
+        view.pbBdObs = new MutationObserver(function (records) {
+            records.forEach(function (r) {
+                [].forEach.call(r.addedNodes, function (node) {
+                    if (node.nodeType === 1 && node.classList.contains('backdropImage') && !node.classList.contains('pbBackdropLayer')) {
+                        var standing = container.querySelector('.backdropImage.displayingBackdropImage:not(.pbGone):not(.pbBackdropLayer)');
+                        if (!standing || standing === node) {
+                            pickLog(view, 'bd-seen:no-standing', '');
+                        }
+                        // the same picture (equal part keys, or the same type / index / tag in the address) stays; another picture fades in as it should
+                        var same = !!sameBackdropWindow || (standing && standing !== node && backdropIdentity(standing.getAttribute('data-url')) !== ''
+                            && backdropIdentity(standing.getAttribute('data-url')) === backdropIdentity(node.getAttribute('data-url')));
+                        // the picture by its content: the index in the address names the file in the version's list (parts.backdropHashes), the version in the address is the item
+                        if (!same && standing && standing !== node && view.pbBdPair) {
+                            var contentOf = function (url) {
+                                var m = /\/Items\/([0-9a-f]{32})\/Images\/Backdrop\/(\d+)/i.exec(url || '');
+                                if (!m) {
+                                    return '';
+                                }
+                                var p = partsOf(view, m[1]);
+                                var list = p && p.backdropHashes ? p.backdropHashes.split(',') : [];
+                                return list[Number(m[2])] || '';
+                            };
+                            var wasHash = contentOf(standing.getAttribute('data-url'));
+                            var newHash = contentOf(node.getAttribute('data-url'));
+                            same = !!wasHash && wasHash === newHash;
+                            pickLog(view, 'bd-seen:' + ((/Backdrop\/(\d+)/.exec(node.getAttribute('data-url') || '') || [])[1] || '?') + ':' + (newHash || '-').slice(0, 6) + (same ? '=' : '!=') + (wasHash || '-').slice(0, 6), '');
+                        }
+                        if (standing && standing !== node && same) {
+                            node.classList.add('pbGone');
+                            node.remove();
+                            pickLog(view, 'bd-removed-new', '');
+                        }
+                    }
+                });
+            });
+        });
+        view.pbBdObs.observe(container, { childList: true });
+        // no fade-in plays on a backdrop picture while the guard stands (an element Jellyfin appended is gone again before it is drawn; the one that stands keeps its look)
+        if (sameBackdropWindow) {
+            ensureQuietStyle();
+            document.documentElement.classList.add('pbBdKeep');
+            holdHeaderBackdropImage(view);
+        }
+        view.pbBdTimer = setTimeout(function () { stopBackdrop(view); }, SWITCH_CEILING_MS);
+    }
+
+    // The mobile layout's header backdrop (#itemBackdrop) gets the NEW version's address when Jellyfin renders a switch, also when the picture is the same: until the browser has
+    // decoded that address the element paints no picture (one black frame). The picture that stands stays on it until the new one is decoded.
+    function holdHeaderBackdropImage(view) {
+        var el = document.getElementById('itemBackdrop');
+        if (!el || typeof MutationObserver !== 'function') {
+            return;
+        }
+        var held = el.style.backgroundImage;
+        var busy = false;
+        if (!held) {
+            return;
+        }
+        view.pbBdImgObs = new MutationObserver(function () {
+            var now = el.style.backgroundImage;
+            if (busy || !now || now === held || el.style.getPropertyPriority('background-image')) {
+                return;
+            }
+            busy = true;
+            var next = now;
+            el.style.setProperty('background-image', held, 'important');
+            var m = /url\(["']?([^"')]+)["']?\)/.exec(next);
+            var release = function () {
+                if (el.style.getPropertyPriority('background-image')) {
+                    el.style.removeProperty('background-image');
+                    el.style.backgroundImage = next;
+                }
+                held = next;
+                busy = false;
+            };
+            if (m && typeof Image === 'function') {
+                var image = new Image();
+                image.src = m[1];
+                var done = false;
+                var once = function () { if (!done) { done = true; release(); } };
+                if (typeof image.decode === 'function') {
+                    image.decode().then(once, once);
+                } else {
+                    image.onload = image.onerror = once;
+                }
+                setTimeout(once, 600);
+            } else {
+                release();
+            }
+        });
+        view.pbBdImgObs.observe(el, { attributes: true, attributeFilter: ['style'] });
+    }
+
+    function stopBackdrop(view) {
+        clearTimeout(view.pbBdTimer);
+        if (view.pbBdImgObs) {
+            view.pbBdImgObs.disconnect();
+            view.pbBdImgObs = null;
+        }
+        if (document.documentElement.classList.contains('pbBdKeep')) {
+            // the fade class goes before the guard does: lifting `animation:none` must not start the fade on a picture that has stood for long
+            [].forEach.call(document.querySelectorAll('.backdropImage.backdropImageFadeIn'), function (img) {
+                img.classList.remove('backdropImageFadeIn');
+            });
+            // the mobile layout's header backdrop (#itemBackdrop, Jellyfin's lazy loader): the same
+            [].forEach.call(document.querySelectorAll('#itemBackdrop.lazy-image-fadein-fast, #itemBackdrop.lazy-image-fadein'), function (img) {
+                img.classList.remove('lazy-image-fadein-fast', 'lazy-image-fadein');
+            });
+            document.documentElement.classList.remove('pbBdKeep');
+        }
+        if (view.pbBdObs) {
+            view.pbBdObs.disconnect();
+            view.pbBdObs = null;
+        }
+    }
+
+    function stopRows(view) {
+        clearTimeout(view.pbRowTimer);
+        (view.pbRowStops || []).forEach(function (stop) { stop(); });
+        view.pbRowStops = [];
+    }
+
+    // The part keys of a version (versions[].parts, contract-version-switch-parts) and the pair of a switch.
+    function partsOf(view, id) {
+        var versions = view && view.pbGame && view.pbGame.versions;
+        var key = String(id || '').replace(/-/g, '').toLowerCase();
+        for (var i = 0; versions && i < versions.length; i++) {
+            if (versions[i] && typeof versions[i].id === 'string' && versions[i].id.replace(/-/g, '').toLowerCase() === key) {
+                return versions[i].parts && typeof versions[i].parts === 'object' ? versions[i].parts : null;
+            }
+        }
+        return null;
+    }
+
+    function partsPair(view, fromId, toId) {
+        var a = partsOf(view, fromId);
+        var b = partsOf(view, toId);
+        return a && b ? { from: a, to: b } : null;
+    }
+
+    // The standing logo of the page (`.detailLogo`): the same picture stays untouched while Jellyfin refills it; another one is covered by a copy of the old logo that fades out
+    // (POSTER_FADE_MS) once the new one is in, so the place is never empty and nothing jumps. No parts of either version = nothing is done (as before).
+    function protectLogo(view, pair) {
+        var logo = view.querySelector('.detailLogo');
+        if (!logo || !pair || logo.classList.contains('hide') || logo.classList.contains('pbLogoArtHidden')) {
+            return;
+        }
+        // not seen = nothing to protect, nothing to cover (hidden by ArtworkPlus' prehide style or by a LogoArt stage)
+        var seen = getComputedStyle(logo);
+        if (seen.display === 'none' || seen.visibility === 'hidden' || !(parseFloat(seen.opacity) > 0)) {
+            return;
+        }
+        if (pair.from.vanillaLogo === pair.to.vanillaLogo) {
+            if (pair.from.vanillaLogo) {
+                holdLazy(view, logo, SWITCH_CEILING_MS, { keep: true, opaque: true });
+            }
+            return;
+        }
+        var rect = logo.getBoundingClientRect();
+        var style = getComputedStyle(logo);
+        if (rect.width < 2 || rect.height < 2 || !style.backgroundImage || style.backgroundImage === 'none') {
+            return;
+        }
+        var ghost = document.createElement('div');
+        ghost.className = 'pbLogoGhost';
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:2;background-repeat:no-repeat;opacity:1;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;'
+            + 'background-image:' + style.backgroundImage + ';background-size:' + style.backgroundSize + ';background-position:' + style.backgroundPosition + ';transition:opacity ' + POSTER_FADE_MS + 'ms ease';
+        document.body.appendChild(ghost);
+        var fade = function () {
+            ghost.style.opacity = '0';
+            setTimeout(function () { if (ghost.parentNode) { ghost.parentNode.removeChild(ghost); } }, POSTER_FADE_MS + 100);
+        };
+        holdLazy(view, logo, SWITCH_CEILING_MS, { keep: true, opaque: true, onSettle: fade });
     }
 
     // The live cards (every .detailImageContainer: 12.1 has one for the desktop and one for the mobile layout) are put back where Jellyfin's rebuild puts new ones,
@@ -1208,25 +1847,37 @@
             // Jellyfin's lazy loader runs over the page after the rebuild and meets the kept picture again: its fade-in (0 -> 1 in 0.1 s) must not replay on a picture that never went away.
             var keptPicture = live.querySelector('.cardImageContainer');
             if (keptPicture) {
-                keptPicture.style.setProperty('animation', 'none', 'important');
-                clearTimeout(keptPicture.pbNoFade);
-                keptPicture.pbNoFade = setTimeout(function () {
-                    keptPicture.style.removeProperty('animation');
-                }, 2500);
+                // held (its fade classes go before the hold does: the fade cannot start when the hold is lifted) until the loader is done with it, or until the live card has been
+                // put back (below), whichever comes first; the ceiling only cleans up
+                holdLazy(view, keptPicture, SWITCH_CEILING_MS, { keep: true });
             }
+            var releaseCard = function () {
+                (view.pbHolds || []).forEach(function (h) {
+                    if (h.el === keptPicture && !h.done) {
+                        h.finish();
+                    }
+                });
+            };
             var observer = new MutationObserver(function () {
                 if (live.isConnected) {
                     return;
                 }
                 var fresh = host.querySelector('.card');
                 if (fresh && fresh !== live) {
+                    if (keptPicture) {
+                        // inserted again, a node restarts its CSS animation while it still has Jellyfin's fade class: the classes go first
+                        stripLazyFade(keptPicture);
+                    }
                     host.replaceChild(live, fresh);
+                    // the event is done: two frames later the hold goes (Jellyfin's lazy loader runs over the fresh card, not over this one)
+                    requestAnimationFrame(function () { requestAnimationFrame(releaseCard); });
                 }
             });
             observer.observe(host, { childList: true });
             observers.push(observer);
             setTimeout(function () {
                 observer.disconnect();
+                releaseCard();
             }, 3000);
         });
     }
@@ -1488,6 +2139,9 @@
             if (state.animation) {
                 state.animation.cancel();
             }
+            if (state.view) {
+                state.view.classList.remove('pbGhostHold');
+            }
             if (state.el.parentNode) {
                 state.el.parentNode.removeChild(state.el);
             }
@@ -1519,7 +2173,8 @@
         var place = function () {
             var now = coverElement(view);
             var r = now && now.getBoundingClientRect();
-            if (r && r.width > 20 && !(now.closest('.hide'))) {
+            // follow only the old card itself (scroll / layout); a card Jellyfin rebuilt for the new version has another size, the old picture keeps its first place and size
+            if (now === box && r && r.width > 20 && !(now.closest('.hide'))) {
                 last = { left: r.left, top: r.top, width: r.width, height: r.height };
             }
             el.style.left = last.left + 'px';
@@ -1665,6 +2320,79 @@
             keep.timer = setTimeout(tick, 100);
         };
         keep.timer = setTimeout(tick, 100);
+    }
+
+    // The old picture as an overlay on the detail page's primary container (it survives Jellyfin refilling the image container and replacing the card). The new card stays hidden
+    // under it (class pbGhostHold) until its picture is set, decoded and its own fade-in is over; then overlay and hiding go in one frame - a hard cut, never two pictures at once
+    // (one rule for every switch, user 2026-11-21). At most 1.5 s.
+
+    function holdCoverAbove(view, cover) {
+        var box = coverElement(view);
+        var host = box && (box.closest('.detailPagePrimaryContainer') || (box.closest('.detailImageContainer') || {}).parentNode);
+        if (!host || !cover || !cover.layers.length || !box.getClientRects().length) {
+            return;
+        }
+        removeGhost();
+        var el = document.createElement('div');
+        el.className = 'pbGhost';
+        el.style.cssText = 'position:absolute;pointer-events:none;z-index:5;border-radius:' + cover.layers[0].radius;
+        var fill = 'position:absolute;left:0;top:0;right:0;bottom:0;';
+        cover.layers.forEach(function (layer) {
+            var part = document.createElement('div');
+            part.style.cssText = fill + 'background-image:url("' + (layer.copy || layer.url).replace(/"/g, '%22') + '");background-size:' + layer.size + ';background-position:'
+                + layer.position + ';background-repeat:' + layer.repeat + ';border-radius:' + layer.radius + ';opacity:' + layer.opacity;
+            el.appendChild(part);
+        });
+        host.appendChild(el);
+        var at = box.getBoundingClientRect();
+        var base = (el.offsetParent || host).getBoundingClientRect();
+        var parent = el.offsetParent || host;
+        el.style.left = (at.left - base.left - (parent.clientLeft || 0)) + 'px';
+        el.style.top = (at.top - base.top - (parent.clientTop || 0)) + 'px';
+        el.style.width = at.width + 'px';
+        el.style.height = at.height + 'px';
+        var state = ghostState = { el: el, animation: null, layers: cover.layers, view: view };
+        setArtStyle('pbGhostHoldStyle', '#itemDetailPage.pbGhostHold .detailImageContainer .cardScalable{visibility:hidden !important}');
+        view.classList.add('pbGhostHold');
+        var began = Date.now();
+        var decoded = {};
+        var seen = function () {
+            var now = coverElement(view);
+            var url = pictureUrl(now);
+            if (!now || !url || cover.layers.every(function (layer) {
+                return samePicture(layer.url, url);
+            })) {
+                return false;
+            }
+            // the card Jellyfin replaces is the one this pick found: its picture may change under the Bridge's own hands first (copies), only the new card counts (or, if the
+            // card is kept, a changed picture after 700 ms)
+            if (now === box && Date.now() - began <= 700) {
+                return false;
+            }
+            var scalable = now.closest('.cardScalable');
+            var fading = [now, scalable].some(function (node) {
+                return !!node && (parseFloat(getComputedStyle(node).opacity) < 0.98 || (typeof node.getAnimations === 'function' && node.getAnimations().some(function (a) {
+                    return a.playState === 'running';
+                })));
+            });
+            return !fading && decodeOnce(decoded, url).ready;
+        };
+        var leave = function () {
+            if (ghostState === state) {
+                removeGhost(true);
+            }
+        };
+        var wait = function () {
+            if (ghostState !== state) {
+                return;
+            }
+            if (!seen() && Date.now() - began < 1500) {
+                requestAnimationFrame(wait);
+                return;
+            }
+            leave();
+        };
+        requestAnimationFrame(wait);
     }
 
     function startCoverFade(view, cover, placed) {
@@ -2079,7 +2807,7 @@
             }
             done = true;
             if (view.pbShownGen === gen && !view.pbLeft) {
-                document.dispatchEvent(new CustomEvent('pb:coverready', { detail: { id: id, generation: gen, none: !!none } }));
+                document.dispatchEvent(new CustomEvent('pb:coverready', { detail: { id: id, generation: gen, none: !!none, kind: posterKind(view.pbGame, id) } }));
             }
         };
         var tick = function () {
@@ -2219,7 +2947,10 @@
         view.pbSwitching = false;
         var next = view.pbPending;
         view.pbPending = null;
+        pickLog(view, 'finish', next);
         if (!next || next.replace(/-/g, '').toLowerCase() === view.pbVersion) {
+            pickSignal = null;
+            syncSelect(view);
             settleHold(view);
             schedulePrefetch(view);
         } else {
@@ -2233,9 +2964,12 @@
                 var again = view.pbPending;
                 view.pbPending = null;
                 view.pbSwitching = false;
+                pickLog(view, 'quiet-run', again);
                 if (again && again.replace(/-/g, '').toLowerCase() !== view.pbVersion) {
                     pickVersion(view, again);
                 } else {
+                    pickSignal = null;
+                    syncSelect(view);
                     settleHold(view);
                     schedulePrefetch(view);
                 }
@@ -2293,6 +3027,9 @@
             if (atOnce) {
                 // 2D (or Box 3D) -> case with other content: the old picture stays on screen until ArtworkPlus says how its case went (artworkplus:gamecase for the new id).
                 var waitLayers = !sameArt && posterKind(view.pbGame, id) === 'case' && posterKind(view.pbGame, fromVersion) !== 'case' ? captureCover(view) : null;
+                // 2D <-> Box 3D picture (no case on either side): Jellyfin replaces the card, the new one fades in from nothing. The old picture stays as an overlay
+                // above the card's place until the new card stands, then fades out over it (no empty place).
+                var plainLayers = !sameArt && !waitLayers && posterKind(view.pbGame, id) !== 'case' && posterKind(view.pbGame, fromVersion) !== 'case' ? captureCover(view) : null;
                 removeGhost(true);
                 if (waitLayers) {
                     waitCaseGhost(view, id.replace(/-/g, '').toLowerCase(), waitLayers);
@@ -2310,8 +3047,30 @@
             if (sameArt) {
                 keepCardsAcross(view, fromId, id);
             }
+            // The part keys of both versions travel on the synthetic events (contract-version-switch-parts); the spinner, the primary block's height and the logo are kept
+            // from Jellyfin's full render that the viewshow below starts.
+            var pair = partsPair(view, fromId, id);
+            if (pair) {
+                same.pbParts = pair;
+            }
+            // every switch names both versions (ArtworkPlus' backdrops and swap read them), not only a same-art one
+            same.fromId = same.fromId || fromId;
+            same.toId = same.toId || id.replace(/-/g, '').toLowerCase();
+            quietStart(view);
+            sameBackdropWindow = pair && pair.from.backdrop && pair.from.backdrop === pair.to.backdrop
+                ? { from: fromId.replace(/-/g, '').toLowerCase(), to: id.replace(/-/g, '').toLowerCase() } : null;
+            pickLog(view, 'parts:' + (pair ? 'yes' : 'NO') + ':bd=' + (pair ? (pair.from.backdrop === pair.to.backdrop ? 'equal' : 'differ') : '-') + (pair && pair.from.backdrops !== pair.to.backdrops ? '(set differs)' : '') + ':logo=' + (pair ? (pair.from.vanillaLogo === pair.to.vanillaLogo ? 'equal' : 'differ') : '-'), id);
+            view.pbBdPair = pair;
+            keepBackdrop(view);
+            keepRows(view);
+            protectLogo(view, pair);
+            pickLog(view, 'dispatch', id);
             view.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: Object.assign({ type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen }, same) }));
             view.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: Object.assign({ type: view.getAttribute('data-type'), params: params, isRestored: false, options: {}, pbInPlace: true, pbGeneration: gen }, same) }));
+            quietWatch(view);
+            if (atOnce && plainLayers) {
+                holdCoverAbove(view, plainLayers);
+            }
             if (atOnce) {
                 // No held picture to release: ArtworkPlus gets the signal of the switch right after the viewshow.
                 document.dispatchEvent(new CustomEvent('pb:switchrelease', { detail: Object.assign({ id: id.replace(/-/g, '').toLowerCase(), first: view.pbFirst, generation: gen, atOnce: true, apMayDraw: !!apMayDraw }, same) }));
@@ -2879,6 +3638,8 @@
         return entries.map(function (entry, index) {
             var item = entry.item;
             var person = item.Type === 'Person';
+            var custom = !!entry.custom; // an actor Jellyfin does not know: name, role and own picture, no link
+            var linked = !custom;
             var name = escapeHtml(item.Name || '');
             var url = '#/details?id=' + item.Id + '&serverId=' + item.ServerId;
             var tag = item.ImageTags && item.ImageTags.Primary;
@@ -2892,23 +3653,23 @@
                 }) : null;
             var imageClass = 'cardImageContainer coveredImage' + (imgUrl ? '' : ' ' + defaultBackgroundClass(item.Name || '')) + ' cardContent';
             var lazy = imgUrl ? ' lazy" data-src="' + imgUrl + '"' : '"';
-            var image = tv
+            var image = tv || custom
                 ? '<div class="' + imageClass + lazy + '>'
                 : '<a href="' + url + '" data-action="link" class="' + imageClass + ' itemAction' + lazy + ' aria-label="' + name + '">';
-            var title = tv ? name : '<a href="' + url + '" data-id="' + item.Id + '" data-serverid="' + item.ServerId + '" data-type="' + item.Type
+            var title = tv || custom ? name : '<a href="' + url + '" data-id="' + item.Id + '" data-serverid="' + item.ServerId + '" data-type="' + item.Type
                 + '" data-isfolder="' + (item.IsFolder || false) + '" class="itemAction textActionButton" title="' + name + '" data-action="link">' + name + '</a>';
             var second = (person ? entry.role && escapeHtml(roleText.replace('{0}', entry.role)) : item.ProductionYear ? String(item.ProductionYear) : '') || '&nbsp;';
             var footer = "<div class='cardText cardTextCentered cardText-first'><bdi>" + title + '</bdi></div>'
                 + "<div class='cardText cardTextCentered" + (person ? ' cardText-secondary' : '') + "'><bdi>" + second + '</bdi></div>';
-            var tagName = tv ? 'button' : 'div';
-            var classes = 'card overflowPortraitCard' + (person ? ' personCard' : '') + (layout.contains('layout-desktop') ? ' card-hoverable' : '') + (tv ? ' show-focus show-animation' : '')
-                + ' card-withuserdata' + (tv ? ' itemAction' : '');
-            return '<' + tagName + ' data-index="' + index + '"' + (tv ? ' data-action="link"' : '') + ' data-isfolder="' + (item.IsFolder || false)
+            var tagName = tv && linked ? 'button' : 'div';
+            var classes = 'card overflowPortraitCard' + (person ? ' personCard' : '') + (linked && layout.contains('layout-desktop') ? ' card-hoverable' : '') + (tv && linked ? ' show-focus show-animation' : '')
+                + ' card-withuserdata' + (tv && linked ? ' itemAction' : '');
+            return '<' + tagName + ' data-index="' + index + '"' + (tv && linked ? ' data-action="link"' : '') + ' data-isfolder="' + (item.IsFolder || false)
                 + '" data-serverid="' + item.ServerId + '" data-id="' + item.Id + '" data-type="' + item.Type + '" data-prefix="'
-                + escapeHtml((item.SortName || item.Name || '').substring(0, 3).toUpperCase()) + '" class="' + classes + '"' + (tv ? ' aria-label="' + name + '"' : '') + '>'
+                + escapeHtml((item.SortName || item.Name || '').substring(0, 3).toUpperCase()) + '" class="' + classes + '"' + (tv && linked ? ' aria-label="' + name + '"' : '') + '>'
                 + '<div class="cardBox cardBox-bottompadded"><div class="cardScalable"><div class="cardPadder cardPadder-overflowPortrait"></div>'
-                + image + (imgUrl || !person ? '' : '<span class="material-icons cardImageIcon person" aria-hidden="true"></span>') + (tv ? '</div>' : '</a>')
-                + (layout.contains('layout-desktop') ? '<div class="cardOverlayContainer itemAction" data-action="link"><a href="' + url + '" class="cardImageContainer"></a><div class="cardOverlayButton-br flex">'
+                + image + (imgUrl || !person ? '' : '<span class="material-icons cardImageIcon person" aria-hidden="true"></span>') + (tv || custom ? '</div>' : '</a>')
+                + (linked && layout.contains('layout-desktop') ? '<div class="cardOverlayContainer itemAction" data-action="link"><a href="' + url + '" class="cardImageContainer"></a><div class="cardOverlayButton-br flex">'
                     + '<button is="paper-icon-button-light" class="cardOverlayButton cardOverlayButton-hover itemAction paper-icon-button-light" data-action="menu" title="More"><span class="material-icons cardOverlayButtonIcon cardOverlayButtonIcon-hover more_vert" aria-hidden="true"></span></button></div></div>' : '')
                 + '</div>' + footer + '</div></' + tagName + '>';
         }).join('');
@@ -2917,7 +3678,7 @@
     function setNfoRow(view, order, key, title, entries, dictionary, gameId) {
         var rowId = tileRows[key];
         var signature = entries.map(function (entry) {
-            return entry.item.Id + (entry.role || '') + (entry.picture ? entry.picture.tag : '');
+            return (entry.item.Id || entry.item.Name) + (entry.role || '') + (entry.picture ? entry.picture.tag : '');
         }).join(',');
         var existing = view.querySelector('#' + rowId);
         if (existing) {
@@ -3898,6 +4659,7 @@
         var row = view.querySelector('#pbSoundtrackCollapsible');
         if (!count) {
             if (row) {
+                pickLog(view, 'area-gone:pbSoundtrackCollapsible', '');
                 row.parentNode.removeChild(row);
             }
             return;
@@ -3929,12 +4691,22 @@
                 return;
             }
             row.pbVersion = id;
+            pickLog(view, 'area-new:pbSoundtrackCollapsible:' + count, '');
             scheduleSoundtrack(row);
             return;
         }
         row.pbName = name;
         row.querySelector('.sectionTitle').textContent = name;
         if (row.pbVersion !== id) {
+            // the same tracks (names, lengths, first and last 64 KB of every file) as the row shows: the album card and its picture stay
+            var before = partsOf(view, row.pbVersion);
+            var after = partsOf(view, id);
+            if (before && after && before.soundtrack && before.soundtrack === after.soundtrack) {
+                row.pbVersion = id;
+                pickLog(view, 'area-kept:pbSoundtrackCollapsible', '');
+                return;
+            }
+            pickLog(view, 'area-differ:pbSoundtrackCollapsible:' + count, '');
             row.pbVersion = id;
             row.pbTracks = null;
             row.pbLoaded = null;
@@ -4129,6 +4901,10 @@
         }
         wrap.pbKey = key;
         if (!counts.length) {
+            if (wrap.pbContent) {
+                pickLog(view, 'area-gone:' + spec.wrapId, '');
+            }
+            wrap.pbContent = '';
             wrap.pbId = null;
             // a version without rows keeps the room of the rows it replaces while the switch runs (what lies below does not move under the hold); the room goes when it has settled
             wrap.style.minHeight = wrap.offsetHeight + 'px';
@@ -4144,6 +4920,20 @@
                 return;
             }
             var rows = answer && answer.rows || [];
+            // The same pictures (content hash of every tile, the same rows) as the area shows: it stands as it is, nothing is built and nothing fades in again.
+            var content = rows.map(function (row) {
+                return row.row + '/' + row.count + '/' + (row.items || []).map(function (item) { return item.content || '?'; }).join(',');
+            }).join(';');
+            if (rows.length && content.indexOf('?') < 0 && wrap.pbContent === content && wrap.firstChild) {
+                wrap.pbId = id;
+                wrap.pbSeed = answer && answer.seed || 0;
+                wrap.style.minHeight = '';
+                pickLog(view, 'area-kept:' + spec.wrapId, '');
+                return;
+            }
+            // the gate reads these (a new or changed area fading in is right): area-new when nothing stood, area-differ when other pictures replace the ones shown
+            pickLog(view, (wrap.pbContent ? 'area-differ:' : 'area-new:') + spec.wrapId + ':' + rows.reduce(function (sum, row) { return sum + (row.items ? row.items.length : 0); }, 0), '');
+            wrap.pbContent = content;
             wrap.pbId = id;
             wrap.pbSeed = answer && answer.seed || 0;
             var holder = document.createElement('div');
@@ -4784,6 +5574,10 @@
 
     function loadDocuments(view, request, game, dictionary, order) {
         var api = window.ApiClient;
+        // a pick that another pick has overtaken applies nothing (its clearing of the area would remove the cards the overtaking pick finds standing, and build them again)
+        if (view.pbRequest !== request) {
+            return;
+        }
         var id = view.pbVersion;
         var versions = (game.versions || []).filter(function (v) { return v && typeof v.id === 'string'; });
         var rowsOf = function (v) { return v && Array.isArray(v.documents) ? v.documents : []; };
@@ -4823,6 +5617,10 @@
         }
         wrap.pbKey = key;
         if (!counts.length) {
+            if (wrap.pbContent) {
+                pickLog(view, 'area-gone:pbDocumentsCollapsible', '');
+            }
+            wrap.pbContent = '';
             // a version without rows keeps the room of the rows it replaces while the switch runs (what lies below does not move under the hold); the room goes when it has settled
             wrap.style.minHeight = wrap.offsetHeight + 'px';
             wrap.innerHTML = '';
@@ -4837,6 +5635,20 @@
                 return;
             }
             var rows = answer && answer.rows || [];
+            // the same documents (name, length, first and last 64 KB per file) as the area shows: it stays; else new or other documents fade in as other content does
+            var content = rows.map(function (row) {
+                return row.row + '/' + row.count + '/' + (row.items || []).map(function (item) { return item.content || '?'; }).join(',');
+            }).join(';');
+            if (rows.length && content.indexOf('?') < 0 && wrap.pbContent === content && wrap.firstChild) {
+                wrap.pbId = id;
+                wrap.pbSeed = answer && answer.seed || 0;
+                wrap.pbDictionary = dictionary;
+                wrap.style.minHeight = '';
+                pickLog(view, 'area-kept:pbDocumentsCollapsible', '');
+                return;
+            }
+            pickLog(view, (wrap.pbContent ? 'area-differ:' : 'area-new:') + 'pbDocumentsCollapsible:' + rows.reduce(function (sum, row) { return sum + (row.items ? row.items.length : 0); }, 0), '');
+            wrap.pbContent = content;
             wrap.pbId = id;
             wrap.pbSeed = answer && answer.seed || 0;
             wrap.pbDictionary = dictionary;
@@ -5263,7 +6075,7 @@
 
     function setConnectionsRow(view, order, title, groups, dictionary, gameId, dividers) {
         var signature = groups.map(function (group) {
-            return group.key + ':' + (group.key === 'series' ? group.items : group.entries.map(function (entry) { return entry.item; })).map(function (item) { return item.Id; }).join(',')
+            return group.key + ':' + (group.key === 'series' ? group.items : group.entries.map(function (entry) { return entry.item; })).map(function (item) { return item.Id || item.Name; }).join(',')
                 + (group.key === 'cast' ? group.entries.map(function (entry) { return (entry.role || '') + (entry.picture ? entry.picture.tag : ''); }).join(',') : '');
         }).join('|') + '|' + title + '|' + dividers + '|' + groups.map(function (group) { return group.label; }).join(',');
         var existing = view.querySelector('#pbConnectionsCollapsible');
@@ -5304,7 +6116,11 @@
         var ids = tiles ? game.series.filter(function (series) { return series.collectionId; }).map(function (series) { return series.collectionId; }) : [];
         var wantNfo = conn.enabled && (conn.media !== 'Off' || conn.cast !== 'Off');
         Promise.all([
-            ids.length ? Promise.all(ids.map(function (collectionId) { return api.getItem(api.getCurrentUserId(), collectionId); })).catch(function () { return null; }) : Promise.resolve([]),
+            ids.length ? (view.pbSeries && view.pbSeries.key === ids.join(',') ? Promise.resolve(view.pbSeries.items) : Promise.all(ids.map(function (collectionId) { return api.getItem(api.getCurrentUserId(), collectionId); })).then(function (items) {
+                // the same collections as the page shows (the series of both versions): their items are not asked again at a version pick
+                view.pbSeries = { key: ids.join(','), items: items };
+                return items;
+            }).catch(function () { return null; })) : Promise.resolve([]),
             wantNfo ? api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(id) + '/nfo')).then(function (answer) { return answer || {}; }, function () { return {}; }) : Promise.resolve({})
         ]).then(function (results) {
             if (view.pbRequest !== request || !view.classList.contains('pbGame')) {
@@ -5562,8 +6378,87 @@
         return gameListComplete ? false : null;
     };
 
+    // true while a version pick of the open game page runs: from the click in the picker (also during the TV sheet's pop waits) until the switch is done or 5.1 s are over
+    // (a pick that is abandoned or fails). id: any version of that game, short or 32-hex, hyphens ignored. The page's other scripts hold their own runs for the game while it is true.
+    var SWITCH_SIGNAL_MS = 5100;
+    var pickSignal = null;   // { at, ids } of the game whose version pick runs (ids: all its versions, 32-hex)
+
+    function raiseSignal(view) {
+        var at = Date.now();
+        pickSignal = { at: at, ids: ((view.pbGame && view.pbGame.versions) || []).filter(function (v) { return v && typeof v.id === 'string'; }).map(function (v) { return plainId(v.id); }) };
+        return at;
+    }
+
+    // TV layout: the picker is Jellyfin's action sheet, which pops its history entry (history.go(-1)) in its own click handler before the pick reaches pickVersion. The signal
+    // is set at the click on the entry (capture phase, ahead of that handler); if no pick follows within 1.5 s (the version that is shown was clicked) it goes false again.
+    document.addEventListener('click', function (e) {
+        var item = e.target && e.target.closest && e.target.closest('.actionSheet .actionSheetMenuItem');
+        var view = item && document.querySelector('.itemDetailPage.pbGame:not(.hide)');
+        var id = item && plainId(item.getAttribute('data-id'));
+        if (!view || !id || view.pbLeft || id === view.pbVersion || !versionOf(view.pbGame, id)) {
+            return;
+        }
+        var at = raiseSignal(view);
+        setTimeout(function () {
+            if (pickSignal && pickSignal.at === at && !view.pbSwitching) {
+                pickSignal = null;
+            }
+        }, 1500);
+    }, true);
+    // TV layout: the signal also stands from the moment the sheet opens (Jellyfin's emby-select opens it on mousedown / Enter, and its history entry flips the address at once, ahead of
+    // any pick). A sheet closed WITHOUT a pick (Escape, Back, a click beside it) ends the signal at that pop, nothing else happens. A pick raises its own newer signal first, so this one
+    // then only goes away quietly.
+    function openSheetSignal(e) {
+        var select = e.target && e.target.closest && e.target.closest('.itemDetailPage.pbGame:not(.hide) .selectSource');
+        if (!select || !document.documentElement.classList.contains('layout-tv') || (e.type === 'mousedown' ? e.button : e.keyCode !== 13)) {
+            return;
+        }
+        var view = select.closest('.itemDetailPage');
+        if (!view || view.pbLeft) {
+            return;
+        }
+        var at = raiseSignal(view);
+        var timer = 0;
+        var end = function () {
+            window.removeEventListener('popstate', end, true);
+            clearInterval(timer);
+            if (pickSignal && pickSignal.at === at) {
+                pickSignal = null;
+            }
+        };
+        window.addEventListener('popstate', end, true);
+        // no sheet came (a native menu) or it is gone without a pop: the signal goes after the sheet's time
+        timer = setInterval(function () {
+            if (!pickSignal || pickSignal.at !== at) {
+                end();
+            } else if (Date.now() - at > 1500 && !document.querySelector('.dialogContainer .actionSheet')) {
+                end();
+            }
+        }, 100);
+    }
+    document.addEventListener('mousedown', openSheetSignal, true);
+    document.addEventListener('keydown', openSheetSignal, true);
+
+    window.PlayniteBridge.switching = function (id) {
+        var key = plainId(id);
+        var signal = pickSignal;
+        if (!signal || key.length < 8 || Date.now() - signal.at >= SWITCH_SIGNAL_MS) {
+            return false;
+        }
+        // The signal belongs to the game, not to a view: the router replaces the view after the sheet's pop and the signal must stand through that render. It ends with the
+        // page (an address that names no version of the game).
+        var now = /[?&]id=([0-9a-f-]{32,36})/i.exec(window.location.hash);
+        return !!now && signal.ids.indexOf(plainId(now[1])) >= 0 && signal.ids.some(function (v) { return v.indexOf(key) === 0; });
+    };
+
     // true: the Bridge draws the Box 3D of this game (it holds the card until its box stands); false: it does not (known); null: not known (yet). Answers at once.
     window.PlayniteBridge.box3d = function (id) {
+        // an open game page already holds the server answer: the version's part key box3d and the loaded settings decide, also on a fresh browser without the stored set
+        var page = document.querySelector('#itemDetailPage:not(.hide)');
+        var version = page && lastConfig ? versionOf(page.pbGame, id) : null;
+        if (version) {
+            return !!(lastConfig.Artwork && lastConfig.Artwork.ArtPosterBox3dEnabled && version.box3d);
+        }
         var state = boxHoldState();
         if (!state.known) {
             return null;
@@ -5761,6 +6656,7 @@
         if (!view || view.id !== 'itemDetailPage') {
             return;
         }
+        window.__pbViewshows = (window.__pbViewshows || 0) + 1;
         view.pbLeft = false;
         rearmRowObservers(view);
         // A restored view: Jellyfin's renderTrackSelections has just hidden and emptied the version list; the chosen version stays.
@@ -5931,6 +6827,7 @@
                         var hidden = view.pbLeft || view.classList.contains('hide');
                         if (!hidden) {
                             watch(view, request, redo);
+                            keepLinks(view);
                         }
                         // 12.1 fills its own Collections row (tileRow); ours only where the page has none (loadConnections).
                         // one loader that fails (an unexpected answer) must not stop the rows after it
@@ -6207,6 +7104,10 @@
         return traceRing.slice();
     };
 
+    // getItem answers of calls that are not the art chain's: id -> { at, promise } (artItem reads them, nobody else is served from here)
+    var seenItems = {};
+    var artItemAsking = false;
+
     function wrapGetItem(api) {
         if (getItemWrapped) {
             return;
@@ -6219,7 +7120,8 @@
             var client = this;
             var userId = arguments[0];
             var itemId = arguments[1];
-            return previous.apply(this, arguments).then(function (item) {
+            var asked = previous.apply(this, arguments);
+            var answered = asked.then(function (item) {
                 if (item && item.Id) {
                     noteItemKind(item.Id, item.Type === 'Movie' && item.LocationType === 'Virtual');
                 }
@@ -6269,6 +7171,14 @@
                 }
                 throw error;
             });
+            // The answer of a call that is not ours (Jellyfin's own render asks for the item of the page): what the art chain (artItem) may take instead of asking again.
+            if (!artItemAsking && itemId) {
+                if (Object.keys(seenItems).length > 60) {
+                    seenItems = {};
+                }
+                seenItems[String(itemId).replace(/-/g, '').toLowerCase()] = { at: Date.now(), promise: answered };
+            }
+            return answered;
         };
     }
 
@@ -6485,6 +7395,9 @@
                 var hintBefore = libraryHint();
                 lastConfig = config;
                 lastConfigTime = Date.now();
+                if (typeof config.ArtFadeMs === 'number' && config.ArtFadeMs >= 0 && !(typeof window.PB_ART_FADE_MS === 'number' && window.PB_ART_FADE_MS >= 0)) {
+                    ART_FADE = config.ArtFadeMs;
+                }
                 rememberGameIds(config.GameIds, config.LibraryId);
                 rememberBox3dIds(config);
                 rememberLibrary(config);
@@ -8286,12 +9199,26 @@
             elem.classList.remove('pbLogoArtHidden');
         });
         [].forEach.call(document.querySelectorAll('.detailLogo'), function (elem) {
-            elem.style.opacity = '';
+            // a logo held opaque by a version switch (holdLazy) keeps its inline opacity until the hold ends
+            if (!elem.pbHeldOpaque) {
+                elem.style.opacity = '';
+            }
             elem.style.transition = '';
         });
     }
 
     function setArtStyle(id, css) {
+        if (id === 'pbArtPosterStyle') {
+            // the 2D size rule is remembered, so the next page load has it from the first frame (restored at the end of the script), not after the ClientConfiguration answer
+            try {
+                if (css) {
+                    window.localStorage.setItem('pbArtPosterCss', css);
+                } else {
+                    window.localStorage.removeItem('pbArtPosterCss');
+                }
+            } catch (e) {
+            }
+        }
         var style = document.getElementById(id);
         if (!css) {
             if (style) {
@@ -8420,32 +9347,100 @@
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer:not([data-src*="tag=pbbox-"]):not([style*="tag=pbbox-"]){background-color:transparent !important;' +
         'background-image:var(--pb-box3d,none) !important;background-size:contain !important;background-position:center bottom !important;background-repeat:no-repeat !important}' +
         '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .blurhash-canvas,' +
-        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .cardImageIcon{display:none !important}' +
-        '#itemDetailPage.pbGame.pbBox3d.pbBox3dIn:not(.pbCase) .detailImageContainer .cardImageContainer:not([data-src*="tag=pbbox-"]):not([style*="tag=pbbox-"]){animation:pbBox3dIn 250ms ease}';
+        '#itemDetailPage.pbGame.pbBox3d:not(.pbCase) .detailImageContainer .cardImageContainer .cardImageIcon{display:none !important}';
 
     // The poster card of a Box 3D page is invisible from the viewshow until the Box 3D stands or it is decided that there is none (3 s at most), so the 2D
     // poster (or the card of the page before) is never drawn.
-    function holdForBox3d(view, id) {
-        releaseBoxHold(view);
+    function holdForBox3d(view, id, known) {
+        releaseBoxHold(view, true);
         var state = boxHoldState();
-        if (!view || (state.known && (state.server || !state.ours || !state.ids[String(id).replace(/-/g, '').toLowerCase()]))) {
+        if (!view || (!known && state.known && (state.server || !state.ours || !state.ids[String(id).replace(/-/g, '').toLowerCase()]))) {
             releaseEarlyHold();
             return;
         }
         setArtStyle('pbArtBoxHoldStyle', '#itemDetailPage.pbBoxHold .detailImageContainer .card:not(.pbBoxCard) .cardScalable,' +
             '#itemDetailPage.pbBoxHold .detailImageContainer .card:not(.pbBoxCard) .pbVersionMarker{visibility:hidden !important}');
         view.classList.add('pbBoxHold');
+        // the card that stands now: Jellyfin's re-render of the version replaces it, and the release (with its fade) waits for the new one
+        view.pbHoldCard = known ? view.querySelector('.detailImageContainer .card') : null;
         releaseEarlyHold();
         view.pbBoxHoldTimer = setTimeout(function () {
-            releaseBoxHold(view);
+            releaseBoxHold(view, true);
         }, 3000);
     }
 
-    function releaseBoxHold(view) {
-        if (view) {
-            clearTimeout(view.pbBoxHoldTimer);
-            view.classList.remove('pbBoxHold');
+    // The 2D poster card of the page: its picture is there (background image set, no data-src, not lazy-hidden).
+    function cardPictureReady(view) {
+        var pic = view.querySelector('.detailImageContainer .cardImageContainer');
+        if (!pic) {
+            return false;
         }
+        var bg = pic.style.backgroundImage;
+        return !!bg && bg !== 'none' && !pic.hasAttribute('data-src') && !pic.classList.contains('lazy-hidden');
+    }
+
+    // The hold of a 2D poster ends when its PICTURE is there (else the card would stand empty and the picture jump in); at most 1.2 s after the release was asked for. A page of a
+    // case or Box 3D, and `now`, release at once.
+    function releaseBoxHold(view, now) {
+        if (!view) {
+            return;
+        }
+        var box = view.querySelector('.detailImageContainer');
+        var boxPage = view.classList.contains('pbBox3d');
+        var ready = boxPage ? true : cardPictureReady(view);
+        if (!now && box && view.classList.contains('pbBoxHold') && !view.classList.contains('pbCase') && !ready) {
+            if (!view.pbBoxHoldWait) {
+                var finish = function () {
+                    clearTimeout(view.pbBoxHoldWaitTimer);
+                    if (view.pbBoxHoldWait) {
+                        view.pbBoxHoldWait.disconnect();
+                        view.pbBoxHoldWait = null;
+                    }
+                    releaseBoxHold(view, true);
+                };
+                view.pbBoxHoldWait = new MutationObserver(function () {
+                    if (cardPictureReady(view)) {
+                        finish();
+                    }
+                });
+                view.pbBoxHoldWait.observe(box, { attributes: true, subtree: true, childList: true, attributeFilter: ['style', 'class', 'data-src'] });
+                view.pbBoxHoldWaitTimer = setTimeout(finish, 1200);
+            }
+            return;
+        }
+        clearTimeout(view.pbBoxHoldTimer);
+        clearTimeout(view.pbBoxHoldWaitTimer);
+        if (view.pbBoxHoldWait) {
+            view.pbBoxHoldWait.disconnect();
+            view.pbBoxHoldWait = null;
+        }
+        view.classList.remove('pbBoxHold');
+        view.pbCaseHold = null;
+    }
+
+    // A page that opens with a 3D case: the poster card stays invisible (the same hold as for Box 3D) until ArtworkPlus says the case is mounted (artworkplus:gamecase shown) and its canvas is on
+    // screen, so the 2D poster is never seen first (user's rule 2026-11-21: show only when it is known what comes and it is drawn). A failed / none answer lets startBox3d decide as before; 3 s at most.
+    function holdForCase(view, id) {
+        if (view.classList.contains('pbBoxHold') || (caseState[plainId(id)] === 'shown' && caseVisible(view))) {
+            return;
+        }
+        holdForBox3d(view, id, true);
+        view.pbCaseHold = plainId(id);
+    }
+
+    function releaseCaseHoldWhenVisible(view) {
+        var began = Date.now();
+        var until = function () {
+            if (!view.pbCaseHold || !view.classList.contains('pbBoxHold')) {
+                return;
+            }
+            if (caseVisible(view) || Date.now() - began > 1000) {
+                releaseBoxHold(view, true);
+                return;
+            }
+            requestAnimationFrame(until);
+        };
+        until();
     }
 
     // A game page opened by a reload or a pasted link gets its viewshow late (Jellyfin builds the card first), so the poster card is hidden from the moment this script
@@ -8456,6 +9451,18 @@
         clearTimeout(earlyHoldTimer);
         document.documentElement.classList.remove('pbBoxHoldEarly');
     }
+
+    // The 2D size rule of the last visit is in place before the first game page is drawn (no answer yet at the start): the card is never shown at Jellyfin's 100 % first. The rule is bound to
+    // #itemDetailPage.pbGame; the ClientConfiguration answer replaces it (startArt) or removes it (ArtworkPlus draws, no Artwork values).
+    (function restorePosterRule() {
+        try {
+            var css = window.localStorage.getItem('pbArtPosterCss');
+            if (css && document.head) {
+                setArtStyle('pbArtPosterStyle', css);
+            }
+        } catch (e) {
+        }
+    }());
 
     (function startEarlyHold() {
         var m = /^#\/details\?(?:.*&)?id=([0-9a-f-]{32,36})/i.exec(window.location.hash || '');
@@ -8477,6 +9484,7 @@
             releaseBoxHold(view);
             view.classList.remove('pbCase', 'pbBox3d', 'pbBox3dIn');
             view.style.removeProperty('--pb-box3d');
+            view.pbBoxUrl = null;
         }
         setArtStyle('pbArtBox3dStyle', '');
     }
@@ -8500,37 +9508,54 @@
             posterHold(false);
         }
         view.classList.add('pbPosterHold');
-        setArtStyle('pbArtHoldStyle', '@keyframes pbPosterIn{from{opacity:0}to{opacity:1}}' +
-            '#itemDetailPage.pbPosterHold .detailImageContainer .cardScalable{visibility:hidden !important}' +
-            '#itemDetailPage.pbPosterIn .detailImageContainer .cardScalable{animation:pbPosterIn 250ms ease}');
+        setArtStyle('pbArtHoldStyle', '#itemDetailPage.pbPosterHold .detailImageContainer .cardScalable{visibility:hidden !important}');
         var observer = null;
         var timer = 0;
+        var waiting = null;
         var done = function (fade) {
             clearTimeout(timer);
             if (observer) {
                 observer.disconnect();
             }
+            if (waiting) {
+                waiting.disconnect();
+            }
             posterHold = null;
             view.classList.remove('pbPosterHold');
-            if (fade === false) {
-                setArtStyle('pbArtHoldStyle', '');
-                return;
-            }
-            // the new poster fades in over 0.25 s (concept: the new picture appears with a fade-in)
-            view.classList.add('pbPosterIn');
-            setTimeout(function () {
-                view.classList.remove('pbPosterIn');
-                if (!posterHold) {
-                    setArtStyle('pbArtHoldStyle', '');
-                }
-            }, 300);
+            // no animation of our own on the new poster: Jellyfin's lazy fade-in of the picture is the only one (the vanilla and ArtworkPlus behaviour, 2026-11-19)
+            setArtStyle('pbArtHoldStyle', '');
         };
         posterHold = done;
+        // the new card is in: the poster fades in once its PICTURE is there too (a card shown without it stands empty until Jellyfin's lazy loader fills it, then pops in);
+        // a card without a picture, or one that does not get it within the 1.5 s of the hold, goes on as before
+        var pictureReady = function () {
+            var pic = box.querySelector('.cardImageContainer');
+            if (!pic) {
+                return false;
+            }
+            var bg = pic.style.backgroundImage;
+            return !!bg && bg !== 'none' && !pic.hasAttribute('data-src') && !pic.classList.contains('lazy-hidden');
+        };
         observer = new MutationObserver(function () {
-            done(true);
+            if (pictureReady()) {
+                done(true);
+                return;
+            }
+            if (!waiting) {
+                waiting = new MutationObserver(function () {
+                    if (pictureReady()) {
+                        waiting.disconnect();
+                        done(true);
+                    }
+                });
+                waiting.observe(box, { attributes: true, subtree: true, childList: true, attributeFilter: ['style', 'class', 'data-src'] });
+            }
         });
         observer.observe(box, { childList: true });
         timer = setTimeout(function () {
+            if (waiting) {
+                waiting.disconnect();
+            }
             done(true);
         }, 1500);
     }
@@ -8549,6 +9574,35 @@
             card.classList.toggle('pbBoxCard', box);
         }
         host.classList.toggle('pbBoxHost', box);
+        // the server's Box 3D card shows its picture once it is loaded: another picture (tag) fades in on the card, 250 ms ease-out, as ArtworkPlus does; the same picture stays as it is
+        // At a version switch in place the new card (its data-src names the tag) stays invisible until Jellyfin's lazy loader has set its picture, then it shows at once (no fade):
+        // a card shown before showed the empty card (the poster's silhouette, BF4 case -> Box 3D, 2026-11-21). At most 1.5 s invisible.
+        var scalable = card && card.querySelector('.cardScalable');
+        var tag = box ? (/tag=(pbbox-[0-9a-f]+)/.exec(pic.style.backgroundImage || '') || [])[1] : null;
+        var coming = box && view.pbSwitching ? (/tag=(pbbox-[0-9a-f]+)/.exec(pic.getAttribute('data-src') || '') || [])[1] : null;
+        if (!box) {
+            view.pbBoxFadeTag = null;
+        }
+        var held = false;
+        if (scalable && (!box || tag) && scalable.style.opacity === '0') {
+            scalable.style.removeProperty('opacity');
+            held = true;
+        }
+        if (scalable && coming && coming !== tag && view.pbBoxFadeTag !== coming && scalable.style.opacity !== '0') {
+            scalable.style.opacity = '0';
+            setTimeout(function () {
+                if (scalable.style.opacity === '0') {
+                    scalable.style.removeProperty('opacity');
+                }
+            }, 1500);
+        }
+        if (tag && (view.pbSwitching || (!pic.hasAttribute('data-src') && !pic.classList.contains('lazy-hidden'))) && view.pbBoxFadeTag !== tag) {
+            view.pbBoxFadeTag = tag;
+            // an in-place switch shows the new box with a hard cut (one rule for every switch, user 2026-11-21): the old picture (a still or the overlay) goes in the same frame
+            if (scalable && scalable.animate && !view.pbSwitching && !held) {
+                scalable.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, easing: 'ease-out' });
+            }
+        }
     }
 
     function watchServerBoxMarks(view) {
@@ -8562,14 +9616,42 @@
         view.pbMarkWatch.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['style', 'data-src'] });
     }
 
+    var boxPictureMemo = {};
+
+    function sameBoxPicture(view, fromId, toId) {
+        var a = partsOf(view, fromId);
+        var b = partsOf(view, toId);
+        return !!a && !!b && !!a.box3d && a.box3d === b.box3d;
+    }
+
     function syncPosterKind(view, id, a) {
         var kind = view.pbGame ? posterKind(view.pbGame, id) : '';
         var ours = !!(a && a.ArtPosterBox3dEnabled);
         var was = view.classList.contains('pbBox3d');
         view.classList.toggle('pbCase', kind === 'case');
         view.classList.toggle('pbBox3d', kind === 'box3d' && ours);
-        view.classList.remove('pbBox3dIn');
-        view.style.removeProperty('--pb-box3d');
+        if (kind === 'case') {
+            holdForCase(view, id);
+        }
+        // the same Box 3D picture (part key box3d) as the one stored for the standing page: it is not taken away and asked for again
+        var keepBox = kind === 'box3d' && ours && !!view.pbBoxUrl && !!view.pbBoxFor && sameBoxPicture(view, view.pbBoxFor, id);
+        view.pbBoxKept = keepBox;
+        // a Box 3D picture of this version shown before on this session (same part key box3d): it stands at once, no wait for the list and the decode
+        var memo = kind === 'box3d' && ours && !keepBox ? boxPictureMemo[plainId(id)] : null;
+        var memoParts = memo ? partsOf(view, id) : null;
+        if (memo && memoParts && memoParts.box3d && memoParts.box3d === memo.hash) {
+            view.pbBoxUrl = memo.url;
+            view.pbBoxFor = id;
+            view.style.setProperty('--pb-box3d', memo.url);
+            view.classList.add('pbBox3dIn');
+        } else if (keepBox) {
+            view.style.setProperty('--pb-box3d', view.pbBoxUrl);
+            view.classList.add('pbBox3dIn');
+        } else {
+            view.classList.remove('pbBox3dIn');
+            view.style.removeProperty('--pb-box3d');
+            view.pbBoxUrl = null;
+        }
         if (kind === 'box3d' && ours) {
             setArtStyle('pbArtBox3dStyle', box3dCss(a));
         } else {
@@ -8588,10 +9670,33 @@
         releaseBoxHold(view);
         view.classList.remove('pbBox3d', 'pbBox3dIn');
         view.style.removeProperty('--pb-box3d');
+        view.pbBoxUrl = null;
         setArtStyle('pbArtBox3dStyle', '');
         var a = lastConfig && lastConfig.Artwork;
         if (a) {
             setArtStyle('pbArtPosterStyle', posterCss(a.ArtPosterSizePercent, a.ArtPosterAnchor));
+        }
+    }
+
+    // The picture list of a version, asked once per pick: the pick itself asks at once (prefetchBox3d), startBox3d takes the same answer.
+    function boxList(view, api, id) {
+        var ask = view.pbBoxAsk;
+        if (ask && ask.id === id && Date.now() - ask.at < 4000) {
+            return ask.promise;
+        }
+        var promise = api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(id) + '/pictures'));
+        view.pbBoxAsk = { id: id, at: Date.now(), promise: promise };
+        return promise;
+    }
+
+    // At the pick of a Box 3D version that does not stand yet: the list is asked now, not after the game answer and the configuration (startBox3d finishes it the same way).
+    function prefetchBox3d(view, api, id, gen, current) {
+        if (!api || !view.pbGame) {
+            return;
+        }
+        var a = lastConfig && lastConfig.Artwork;
+        if (a) {
+            startBox3d(view, api, id, a, gen, current, view.pbGame);
         }
     }
 
@@ -8604,12 +9709,23 @@
             return;
         }
         setArtStyle('pbArtBox3dStyle', box3dCss(a));
+        // the same Box 3D picture (part key box3d) as the one that stands: it stays, its list and its picture are not asked again
+        var standing = !!view.pbBoxUrl && !!view.pbBoxFor;
+        var equalBox = standing && sameBoxPicture(view, view.pbBoxFor, id);
+        pickLog(view, 'box3d:' + (standing ? (equalBox ? 'equal' : 'differs') : 'none-stored') + (view.classList.contains('pbBox3dIn') ? ':standing' : ':not-standing'), id);
+        if (equalBox) {
+            view.style.setProperty('--pb-box3d', view.pbBoxUrl);
+            view.pbBoxFor = id;
+            view.classList.add('pbBox3dIn');
+            releaseBoxHold(view);
+            return;
+        }
         var fail = function () {
             if (gen === artGeneration && current()) {
                 box3dFailed(view);
             }
         };
-        api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(id) + '/pictures')).then(function (list) {
+        boxList(view, api, id).then(function (list) {
             var entry = (list || []).filter(function (p) {
                 return p && p.Type === 'box3d';
             })[0];
@@ -8627,7 +9743,13 @@
                 setTimeout(reject, 3000);
             })]).then(function () {
                 if (gen === artGeneration && current() && view.classList.contains('pbBox3d')) {
-                    view.style.setProperty('--pb-box3d', 'url("' + url.replace(/"/g, '%22') + '")');
+                    view.pbBoxUrl = 'url("' + url.replace(/"/g, '%22') + '")';
+                    var shownParts = partsOf(view, id);
+                    if (shownParts && shownParts.box3d) {
+                        boxPictureMemo[plainId(id)] = { hash: shownParts.box3d, url: view.pbBoxUrl };
+                    }
+                    view.style.setProperty('--pb-box3d', view.pbBoxUrl);
+                    view.pbBoxFor = id;
                     view.classList.add('pbBox3dIn');
                     releaseBoxHold(view);
                 }
@@ -8645,6 +9767,9 @@
         var view = document.querySelector('#itemDetailPage:not(.hide)');
         var args = view && view.pbBoxArgs;
         var isCase = !!view && view.classList.contains('pbCase');
+        if (d.state === 'shown' && view && view.pbCaseHold === plainId(d.id)) {
+            releaseCaseHoldWhenVisible(view);
+        }
         // failed / none matter while the page stands back for a case; shown matters when it does not yet (a case that came on a later try)
         if (args && (d.state === 'shown' ? !isCase : isCase) && plainId(args.id) === plainId(d.id) && args.gen === artGeneration && args.current()) {
             startBox3d(view, args.api, args.id, args.a, args.gen, args.current, args.game);
@@ -8822,10 +9947,37 @@
         });
     }
 
-    var ART_FADE = 600;
+    // The one fade time of a logo / CharacterArt change (user decides the curve at the hand test): window.PB_ART_FADE_MS overrides it in one place.
+    // With ArtworkPlus installed its stored CharacterArt fade time comes with the client configuration (ArtFadeMs, set through ArtworkPlusLink); the override stays for tests.
+    var ART_FADE = typeof window.PB_ART_FADE_MS === 'number' && window.PB_ART_FADE_MS >= 0 ? window.PB_ART_FADE_MS : 600;
+
+    // The item as Jellyfin answers it, asked once per version within a few seconds (the Logo and the Clearart stage each asked it again at every pick).
+    var artItems = {};
+
+    function artItem(api, id) {
+        // Jellyfin asked for this item itself within the last seconds (its render of the page): that answer, rule of Artwork on Version Change applied as it applied it
+        var key = String(id).replace(/-/g, '').toLowerCase();
+        var seen = seenItems[key];
+        if (seen && Date.now() - seen.at < 4000) {
+            return seen.promise;
+        }
+        var known = artItems[id];
+        if (known && Date.now() - known.at < 4000) {
+            return known.promise;
+        }
+        artItemAsking = true;
+        var promise;
+        try {
+            promise = Promise.resolve(api.getItem(api.getCurrentUserId(), id));
+        } finally {
+            artItemAsking = false;
+        }
+        artItems[id] = { at: Date.now(), promise: promise };
+        return promise;
+    }
 
     function artTag(api, id, type) {
-        return Promise.resolve(api.getItem(api.getCurrentUserId(), id)).then(function (item) {
+        return artItem(api, id).then(function (item) {
             return (item && item.ImageTags && item.ImageTags[type]) || '';
         }, function () {
             return '';
@@ -9044,11 +10196,15 @@
                 document.body.appendChild(box);
             }
             artFrame();
+            // other characterart replacing the one that stands: the new image fades in on its layer (not on the box as well: that was a third opacity transition, ArtworkPlus has two),
+            // the old one fades out with its anchor, both over the same fade time
             if (before) {
-                fadeInBox(box);
                 fadeOutBox(before.parentNode.classList.contains('pbCharArtAnchor') ? before.parentNode : before);
             }
             var r = artRotation(a, 'ArtCharacterArt', a[prefix + 'HorizontalAlign']);
+            if (before) {
+                r.fade = ART_FADE;
+            }
             var start = function () {
                 rotateArt(box, 'pbCharArtLayer', urls, r, gen, function (ratio) {
                     sizeArtBox(box, a, prefix, ratio);
@@ -9083,17 +10239,27 @@
 
     // rule: the CharacterArt row of Artwork on Version Change ({ follow, keep }), only for a version picked on the standing page (keep).
     function startArt(view, api, id, a, gen, keep, current, rule, game) {
+        var artBefore = view.pbArtId && view.pbArtId !== id ? view.pbArtId : null;
+        view.pbArtId = id;
         setArtStyle('pbArtPosterStyle', posterCss(a.ArtPosterSizePercent, a.ArtPosterAnchor));
         startBox3d(view, api, id, a, gen, current, game);
         setArtStyle('pbArtStyle', logoUntouched(a) && !a.ArtCharacterArtShow ? '' : ART_CSS + logoCss(a));
         var listOf = function (game) {
-            return api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(game) + '/characterart')).then(function (entries) {
+            // the list of one version is asked once per page: the first version of a page (Artwork on Version Change keeps its art) and a version picked before are not asked again
+            var key = String(game).replace(/-/g, '').toLowerCase();
+            view.pbCharLists = view.pbCharLists || {};
+            if (view.pbCharLists[key]) {
+                return view.pbCharLists[key];
+            }
+            var asked = api.getJSON(api.getUrl('PlayniteBridge/games/' + encodeURIComponent(game) + '/characterart')).then(function (entries) {
                 return (entries || []).map(function (entry) {
                     return api.getUrl('PlayniteBridge/games/' + encodeURIComponent(game) + '/characterart/' + entry.Index, { tag: entry.Tag });
                 });
             }, function () {
                 return [];
             });
+            view.pbCharLists[key] = asked;
+            return asked;
         };
         // A picked version shows the list of the version the page was opened with while its Follows Version is off, or while Keep When Version Has
         // None is on and it has none.
@@ -9101,9 +10267,29 @@
         var list = null;
         var characterArt = function () {
             if (!list) {
-                list = first && !rule.follow ? listOf(first) : listOf(id).then(function (urls) {
-                    return first && rule.keep && !urls.length ? listOf(first) : urls;
-                });
+                // the same CharacterArt files (part key characterArt) as the version whose list this page holds: its list is used, nothing is asked, and the box
+                // (its signature is the files' names and tags) stays
+                var before = view.pbCharFor ? partsOf(view, view.pbCharFor) : null;
+                var now = partsOf(view, id);
+                var ownList = !(first && !rule.follow);
+                if (keep && ownList && view.pbCharList && view.pbCharList.length && before && now && before.characterArt && before.characterArt === now.characterArt) {
+                    list = Promise.resolve(view.pbCharList);
+                } else if (keep && ownList && artBefore && partsOf(view, artBefore) && now && partsOf(view, artBefore).characterArt === '' && now.characterArt === '') {
+                    // none on either side: nothing to ask (the fallback to the first version's list, if the rule keeps it, comes from the page's own memo)
+                    list = first && rule && rule.keep ? listOf(first) : Promise.resolve([]);
+                } else {
+                    list = first && !rule.follow ? listOf(first) : listOf(id).then(function (urls) {
+                        return first && rule.keep && !urls.length ? listOf(first) : urls;
+                    });
+                    if (ownList) {
+                        list.then(function (urls) {
+                            if (urls.length && (!first || !rule.keep || urls.length)) {
+                                view.pbCharList = urls;
+                                view.pbCharFor = id;
+                            }
+                        });
+                    }
+                }
             }
             return list;
         };
@@ -9144,7 +10330,11 @@
             // Our two style elements stay across page changes only while an answer younger than 30 s says ArtworkPlus is not active; else they go at
             // once.
             if (!(lastConfig && Date.now() - lastConfigTime < 30000 && !apDraws(lastConfig))) {
-                setArtStyle('pbArtPosterStyle', '');
+                // the poster size rule is scoped to #itemDetailPage.pbGame, so keeping it through the page change costs nothing on other pages; while the last answer says ArtworkPlus is
+                // not active it stays (also when that answer is older than 30 s), so a game page that comes back from Jellyfin's view cache is not drawn at 100 % until the new answer is in
+                if (lastConfig && (!lastConfig.Artwork || apDraws(lastConfig))) {
+                    setArtStyle('pbArtPosterStyle', '');
+                }
                 setArtStyle('pbArtStyle', '');
                 clearBox3d(view);
             }
@@ -9161,7 +10351,11 @@
         var gen = artGeneration;
         // a version picked on the standing page: the old picture goes at once, decided from the game answer already on the view
         if (keep && view.pbGame && lastConfig && lastConfig.Artwork && !apDraws(lastConfig)) {
-            syncPosterKind(view, id, lastConfig.Artwork);
+            // a Box 3D picture that does not stand yet: the card stays invisible until it does (as at a first opening), else it fades in empty and the picture jumps in later
+            if (syncPosterKind(view, id, lastConfig.Artwork) === 'box3d' && !view.pbBoxKept) {
+                holdForBox3d(view, id, true);
+                prefetchBox3d(view, api, id, artGeneration, current);
+            }
         }
         // A cached answer without ArtworkPlus whose chain does not begin with Jellyfin's logo hides that logo as soon as the page is known as a game,
         // before the fresh answer. Only an answer younger than 30 s counts.
@@ -9269,6 +10463,16 @@
         var bag = [];
         return {
             list: list,
+            // another set whose picture at newIndex is the one that stands: the rotation goes on from there
+            replace: function (urls2, newIndex) {
+                list.length = 0;
+                urls2.forEach(function (u) { list.push(u); });
+                index = newIndex;
+                bag = [];
+            },
+            current: function () {
+                return index >= 0 ? list[index] : null;
+            },
             next: function () {
                 if (order === 'Shuffle') {
                     if (!bag.length) {
@@ -9403,6 +10607,8 @@
             bdContainer.style.cssText = 'position:fixed;inset:0;z-index:-1;contain:layout style size';
             document.body.insertBefore(bdContainer, document.body.firstChild);
         }
+        // readable by the study's probe: 'on' while the Ken Burns zoom / pan animations run in this container (their pixels are ours, under the see-through pictures)
+        bdContainer.setAttribute('data-pb-kenburns', run.kenBurns ? 'on' : 'off');
         if (!run.kenBurns) {
             bdFrame = null;
             bdFrameKey = null;
@@ -9452,6 +10658,7 @@
             if (gen !== bdGeneration) {
                 return;
             }
+            pickLog(null, 'bd-loaded');
             var frame = bdTarget(run);
             var old = bdContainer.querySelector('.pbBackdropShowing');
             var layer = document.createElement('div');
@@ -9468,6 +10675,7 @@
                     return;
                 }
                 void layer.offsetWidth;
+                pickLog(null, 'bd-fade');
                 layer.style.opacity = '1';
                 run.shownAt = Date.now();
                 bdSchedule(run);
@@ -9505,7 +10713,7 @@
                     }
                     calm = prev !== null && ts - prev <= 34 ? calm + 1 : 0;
                     prev = ts;
-                    if (calm >= 20 || performance.now() - start >= 1500) {
+                    if (calm >= 20 || performance.now() - start >= (run.calmLimit || 1500)) {
                         begin();
                     } else {
                         requestAnimationFrame(step);
@@ -9550,7 +10758,10 @@
             bdRelease();
             return;
         }
-        bdRun = Object.assign({ engine: bdEngine(urls, values.order, values.randomStart), shownAt: 0, shown: false, paused: false }, values);
+        // a picture of our own already stands (a version picked on the standing page): the first image fades in over it at once (no calm-frame wait: the old picture stays visible meanwhile)
+        var standing = !!(bdContainer && bdContainer.querySelector('.pbBackdropShowing'));
+        pickLog(null, 'bd-start:' + urls.length + (standing ? ':standing' : ':first'));
+        bdRun = Object.assign({ engine: bdEngine(urls, values.order, values.randomStart), shownAt: 0, shown: false, paused: false, calmLimit: standing ? 1 : 1500 }, values);
         bdClaim();
         if (values.view === 'Detail' || values.view === 'Collection') {
             urls.slice(1, values.view === 'Collection' ? 9 : urls.length).forEach(function (url) {
@@ -9560,6 +10771,35 @@
             });
         }
         bdShowNext();
+    }
+
+    // The sets of the two versions differ, but the picture that stands (its content, from the part keys) is in the new set: it stays, the engine goes on over the new
+    // set from that picture, same beat. False: it is not (or nothing is known): the restart with its cross-fade.
+    function keepStandingBackdrop(keys, urls, values, key) {
+        var run = bdRun;
+        if (!run || !run.engine || !keys || !keys.from || !keys.to || !keys.from.backdropHashes || !keys.to.backdropHashes) {
+            return false;
+        }
+        var shown = run.engine.current();
+        var m = shown && /\/Images\/Backdrop\/(\d+)/.exec(shown);
+        var oldHashes = keys.from.backdropHashes.split(',');
+        var newHashes = keys.to.backdropHashes.split(',');
+        var hash = m ? oldHashes[Number(m[1])] : '';
+        var at = hash ? newHashes.indexOf(hash) : -1;
+        if (at < 0 || at >= urls.length) {
+            return false;
+        }
+        run.engine.replace(urls, at);
+        bdSig = bdSigOf(values, urls);
+        bdKey = key;
+        urls.forEach(function (url, i) {
+            if (i !== at) {
+                var image = new Image();
+                image.fetchPriority = 'low';
+                image.src = url;
+            }
+        });
+        return true;
     }
 
     function bdCollectionKnown(id, config) {
@@ -9607,13 +10847,21 @@
         // A version picked on the standing page: its backdrops are compared with the running engine's; the same set keeps the rotation where it is, a
         // different one restarts it (cross-fade).
         if (id && e.detail && e.detail.pbInPlace && bdRun && !bdRun.paused && bdSig && bdKey && bdKey.indexOf('detail|') === 0) {
+            // Part keys (contract-version-switch-parts): the same backdrop set (content) keeps the running rotation as it is, same image and same beat; the tags in the url
+            // differ per version, so the comparison below would restart it
+            var keys = e.detail.pbParts;
+            if (keys && keys.from && keys.to && keys.from.backdrops && keys.from.backdrops === keys.to.backdrops) {
+                bdPick++;
+                bdKey = key;
+                return;
+            }
             var pick = ++bdPick;
             Promise.all([loadGame(api, id), artConfiguration(api)]).then(function (results) {
                 var values = pick === bdPick && results[0] && bdValues(bdArtwork(results[1]), 'Detail');
                 if (!values) {
                     return pick === bdPick && bdBegin();
                 }
-                return api.getItem(api.getCurrentUserId(), id).then(function (item) {
+                return artItem(api, id).then(function (item) {
                     if (pick !== bdPick) {
                         return;
                     }
@@ -9622,6 +10870,8 @@
                     });
                     if (bdSigOf(values, urls) === bdSig) {
                         bdKey = key;
+                    } else if (keepStandingBackdrop(keys, urls, values, key)) {
+                        pickLog(null, 'bd-standing-kept', id);
                     } else {
                         bdBegin();
                     }
@@ -9677,7 +10927,7 @@
                     bdRelease();
                     return;
                 }
-                return api.getItem(api.getCurrentUserId(), id).then(function (item) {
+                return artItem(api, id).then(function (item) {
                     bdStart(gen, values, (item.BackdropImageTags || []).map(function (tag, i) {
                         return api.getUrl('Items/' + item.Id + '/Images/Backdrop/' + i, { tag: tag });
                     }));
@@ -10877,122 +12127,6 @@
             themeStopAll();
         }
     });
-
-    // Jellyfin's reload of a page (the late start below) builds the card anew: the standing Box 3D of the server would be gone for the frames the new card needs to load its picture
-    // and to fade it in. A copy of the picture stands over the card until the new one has painted (then it is removed; 1.5 s at the most).
-    function keepServerBoxAcrossRebuild(view) {
-        var pic = view.querySelector('.detailImageContainer .pbBoxCard .cardImageContainer');
-        var image = pic && pic.style.backgroundImage;
-        var host = view.querySelector('.detailImageContainer');
-        if (!image || !host || typeof MutationObserver !== 'function') {
-            return;
-        }
-        var rect = pic.getBoundingClientRect();
-        var ghost = document.createElement('div');
-        ghost.className = 'pbBoxGhost';
-        ghost.style.cssText = 'position:fixed;pointer-events:none;z-index:5;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height +
-            'px;background-image:' + image + ';background-size:contain;background-position:center bottom;background-repeat:no-repeat';
-        document.body.appendChild(ghost);
-        var observer = null;
-        var gone = false;
-        var remove = function () {
-            if (gone) {
-                return;
-            }
-            gone = true;
-            if (observer) {
-                observer.disconnect();
-            }
-            if (ghost.parentNode) {
-                ghost.parentNode.removeChild(ghost);
-            }
-        };
-        observer = new MutationObserver(function () {
-            var now = host.querySelector('.cardImageContainer');
-            if (now && now !== pic && now.style.backgroundImage && /tag=pbbox-/.test(now.style.backgroundImage)) {
-                // the new picture is set; Jellyfin fades it in over 0.1 s: the copy goes after that
-                setTimeout(remove, 250);
-                observer.disconnect();
-            }
-        });
-        observer.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
-        setTimeout(remove, 1500);
-    }
-
-    // Late start on a cold load of a detail URL: this deferred script comes after Jellyfin's bundles, which can show the page before the listeners
-    // above exist. When a detail page is shown at load and no viewshow follows within a second, it is shown again as a version switch does it
-    // (viewbeforehide + viewshow), so Jellyfin's controller reloads the item through the wrapped getItem.
-    var lateView = document.querySelector('#itemDetailPage:not(.hide)');
-    if (lateView && /^#\/details\?/.test(window.location.hash)) {
-        var lateSeen = false;
-        var onLateShow = function (e) {
-            if (e.target === lateView) {
-                lateSeen = true;
-            }
-        };
-        document.addEventListener('viewshow', onLateShow, true);
-        // Only a game's page is shown again: the item is asked through the wrapped getItem (Jellyfin's own request) and must be a possible game
-        // (Type Movie, LocationType Virtual), and games/{id} must say so (loadGame); every other page stays as Jellyfin drew it.
-        setTimeout(function () {
-            document.removeEventListener('viewshow', onLateShow, true);
-            var lateHash = window.location.hash;
-            var lateItem = itemId();
-            var lateApi = window.ApiClient;
-            var stillLateView = function () {
-                return !lateSeen && lateView.isConnected && !lateView.classList.contains('hide') && window.location.hash === lateHash;
-            };
-            if (!stillLateView() || !/^#\/details\?/.test(lateHash) || !lateItem || !lateApi) {
-                return;
-            }
-            lateApi.getItem(lateApi.getCurrentUserId(), lateItem).then(function (item) {
-                return item && item.Type === 'Movie' && item.LocationType === 'Virtual' ? loadGame(lateApi, lateItem) : null;
-            }).then(function (game) {
-                if (game && stillLateView()) {
-                    var detail = { type: lateView.getAttribute('data-type'), params: {}, isRestored: false, options: {} };
-                    keepServerBoxAcrossRebuild(lateView);
-                    lateView.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: detail }));
-                    lateView.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: detail }));
-                }
-            }).catch(noop);
-        }, 1000);
-    }
-
-    // The same late start on a cold load of a games library page (movies.html or list.html of the library or a collection folder), which missed our
-    // viewshow handlers. When it is shown at load, no viewshow follows within a second and the ClientConfiguration answer says it is the games
-    // library, it is hidden and shown again once as a return from Jellyfin's view cache does it (isRestored true), which keeps Jellyfin's controllers
-    // balanced (a non-restored replay would leave a second AlphaPicker and keydown listener).
-    var lateLibrary = visibleView();
-    var lateLibraryId = routeParam('movies.html', 'topParentId') || routeParam('list.html', 'parentId');
-    var lateLibraryHash = window.location.hash;
-    if (lateLibrary && lateLibraryId && lateLibrary !== reactLibraryPage()) {
-        var lateLibrarySeen = false;
-        var onLateLibraryShow = function (e) {
-            if (e.target === lateLibrary) {
-                lateLibrarySeen = true;
-            }
-        };
-        document.addEventListener('viewshow', onLateLibraryShow, true);
-        setTimeout(function () {
-            var stillLate = function () {
-                return !lateLibrarySeen && lateLibrary.isConnected && visibleView() === lateLibrary && window.location.hash === lateLibraryHash;
-            };
-            if (!stillLate() || !window.ApiClient) {
-                document.removeEventListener('viewshow', onLateLibraryShow, true);
-                return;
-            }
-            clientConfiguration(window.ApiClient).then(function (config) {
-                document.removeEventListener('viewshow', onLateLibraryShow, true);
-                if (stillLate() && gamesRoute(config, lateLibraryId.replace(/-/g, '').toLowerCase())) {
-                    var detail = { type: lateLibrary.getAttribute('data-type'), params: {}, isRestored: true, options: {} };
-                    lateLibrary.dispatchEvent(new CustomEvent('viewbeforehide', { bubbles: true, detail: detail }));
-                    lateLibrary.dispatchEvent(new CustomEvent('viewhide', { bubbles: true, detail: detail }));
-                    lateLibrary.dispatchEvent(new CustomEvent('viewshow', { bubbles: true, detail: detail }));
-                }
-            }, function () {
-                document.removeEventListener('viewshow', onLateLibraryShow, true);
-            });
-        }, 1000);
-    }
 
     // The Games library icon from the cached hint and choice, before the first answer.
     applyLibraryIcon();

@@ -311,6 +311,46 @@ public sealed class ImageCache
         }
     }
 
+    private static readonly ConcurrentDictionary<string, (long Length, long Ticks, string Key)> QuickKeys = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A cheap fingerprint for large files (documents, up to 150 MB): the file name, its length and the SHA-256 of its first and last 64 KB. Copies of one document in two version
+    /// folders give the same key; two different files would need the same name, length, start and end. Cached by length and write time; null for a missing or unreadable file; never throws.
+    /// </summary>
+    public static string? QuickKey(string? path)
+    {
+        try
+        {
+            var info = path is null ? null : new FileInfo(path);
+            if (info is null || !info.Exists)
+            {
+                return null;
+            }
+
+            var length = info.Length;
+            var ticks = info.LastWriteTimeUtc.Ticks;
+            if (QuickKeys.TryGetValue(info.FullName, out var known) && known.Length == length && known.Ticks == ticks)
+            {
+                return known.Key;
+            }
+
+            const int block = 64 * 1024;
+            using var stream = new FileStream(info.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.RandomAccess);
+            var head = new byte[(int)Math.Min(block, length)];
+            stream.ReadExactly(head, 0, head.Length);
+            var tail = new byte[(int)Math.Min(block, length)];
+            stream.Seek(length - tail.Length, SeekOrigin.Begin);
+            stream.ReadExactly(tail, 0, tail.Length);
+            var key = info.Name.ToLowerInvariant() + "|" + length + "|" + Convert.ToHexString(SHA256.HashData(head), 0, 8) + Convert.ToHexString(SHA256.HashData(tail), 0, 8);
+            QuickKeys[info.FullName] = (length, ticks, key);
+            return key;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// The image of <paramref name="type"/> of a version for an image request, read only: as <see cref="Image"/> or for the backdrop the first of
     /// <see cref="Backdrops"/>. Copies are made and replaced only by Sync Artwork.

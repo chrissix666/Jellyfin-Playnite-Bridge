@@ -253,6 +253,7 @@ public class GamesController : ControllerBase
                     StartMax = Math.Clamp(Math.Max(config.ThemeVideoStartMinPercent, config.ThemeVideoStartMaxPercent), 0, 100)
                 } : null,
                 VersionArtwork = VersionArtwork(config),
+                ArtFadeMs = ArtworkPlusLink.ArtFadeMs >= 0 ? ArtworkPlusLink.ArtFadeMs : (int?)null,
                 ArtworkSource = artworkPlusDraws ? "ArtworkPlus" : "PlayniteBridge",
                 Artwork = ClientArtwork(config, artworkPlusDraws),
                 PlayerArtworkSource = config.OsdArtworkSettingsFrom.ToString(),
@@ -762,6 +763,8 @@ public class GamesController : ControllerBase
                     box3d = ArtworkPlusLinkCore.CasePart(caseData, caseImages, Guid.Parse(v.Id), "box3d") is not null,
                     // Everything this version's detail card draws, by content: equal keys = the same card (the page leaves it standing at a version switch).
                     artKey = ArtworkPlusLinkCore.ArtKey(caseData, caseImages, Guid.Parse(v.Id), caseSettings, drawerKey, configStamp),
+                    // The parts that key is made of (contract-version-switch-parts): the page decides per part what a switch exchanges.
+                    parts = WithSoundtrack(ArtworkPlusLinkCore.Parts(caseData, caseImages, Guid.Parse(v.Id), caseSettings, CharacterArtFiles.Name(config)), _filter.SoundtrackOfVersion(group, v.Id)),
                     completionStatus = StatusLink(versionDetail?.CompletionStatus),
                     lastPlayed = v.LastActivity,
                     playtime = v.Playtime > 0 ? v.Playtime * TimeSpan.TicksPerSecond : (long?)null,
@@ -919,9 +922,10 @@ public class GamesController : ControllerBase
     /// <summary>
     /// The Related Media and Actors rows of a visible game from its game.nfo (GameNfo; the game's own folder first, else the other versions of its group in group order):
     /// { related: [BaseItemDto], actors: [{ item: BaseItemDto, role }] } in the file's display order. Everything is resolved again on every call: an actor by name (GetPerson),
-    /// tmdb = a movie, tvdb = a series, tmdbset = the box set of a movie with that TMDb collection id. Whatever Jellyfin does not know or the user may not see (IsVisible)
-    /// is left out. 204 for an unknown or blocked game, a user who may not see the games library and a game without a usable game.nfo.
+    /// tmdb = a movie, tvdb = a series, tmdbset = the box set of a movie with that TMDb collection id. A movie, series or box set Jellyfin does not know or the user may not see
+    /// (IsVisible) is left out; an actor Jellyfin does not know stays as { item: { Name, Type: "Person" }, role, custom: true } (no link), a known one the user may not see is left out. 204 for an unknown or blocked game, a user who may not see the games library and a game without a usable game.nfo.
     /// </summary>
+    // An empty answer is 200 with {}, not 204: the web client's apiclient fails on the empty body of a 204 and asks again.
     [HttpGet("games/{id}/nfo")]
     public ActionResult GetNfo(Guid id)
     {
@@ -929,7 +933,7 @@ public class GamesController : ControllerBase
         if (PlayniteReader.ResolveFolder(config.PlayniteFolder) is null || PlayniteSnapshot.CurrentSet() is null
             || VirtualItemsFilter.VisibleGamesAccess(_libraryManager, _userManager, User, null) is not (Guid, var user))
         {
-            return NoContent();
+            return Ok(new { });
         }
 
         try
@@ -939,12 +943,12 @@ public class GamesController : ControllerBase
             var found = game is null ? null : GameGroups.Find(GameGroups.DetailGroups(visible, config), game.Id);
             if (game is null || found is null)
             {
-                return NoContent();
+                return Ok(new { });
             }
 
             if (NfoSource(game) is not var (nfoFolder, nfo))
             {
-                return NoContent();
+                return Ok(new { });
             }
 
             // The movie and box set lists of a tmdbset entry are loaded once per request, the box set once per collection id.
@@ -953,16 +957,18 @@ public class GamesController : ControllerBase
             var series = new Lazy<List<BaseItem>>(() => _libraryManager.GetItemList(new InternalItemsQuery { IncludeItemTypes = new[] { BaseItemKind.Series }, Recursive = true }).ToList());
             var sets = new Dictionary<string, BoxSet?>();
             var related = nfo.Media.Select(m => ResolveMedia(m, user, movies, series, boxSets, sets)).Where(item => item is not null).Select(item => item!).DistinctBy(item => item.Id).ToList();
-            var people = nfo.Actors.Select((a, index) => (Person: _libraryManager.GetPerson(a.Name), a.Role, Index: index, Image: config.ConnectionsCustomPictures ? GameNfo.ActorImage(nfoFolder, a.Name) : null))
-                .Where(a => a.Person is not null && (user is null || a.Person.IsVisible(user))).ToList();
+            // An actor Jellyfin does not know as a person stays in the list as a custom entry (name, role, own picture; the web client draws it without a link);
+            // a known person the user may not see is left out.
+            var people = nfo.Actors.Select((a, index) => (Person: _libraryManager.GetPerson(a.Name), a.Name, a.Role, Index: index, Image: config.ConnectionsCustomPictures ? GameNfo.ActorImage(nfoFolder, a.Name) : null))
+                .Where(a => a.Person is null || user is null || a.Person.IsVisible(user)).ToList();
             var options = new DtoOptions(false) { Fields = new[] { ItemFields.PrimaryImageAspectRatio }, ImageTypes = new[] { ImageType.Primary }, ImageTypeLimit = 1, EnableUserData = false };
             var relatedDtos = _dtoService.GetBaseItemDtos(related, options, user);
-            var actorDtos = _dtoService.GetBaseItemDtos(people.Select(a => (BaseItem)a.Person!).ToList(), options, user);
+            var actorDtos = _dtoService.GetBaseItemDtos(people.Where(a => a.Person is not null).Select(a => (BaseItem)a.Person!).ToList(), options, user);
             return Ok(new
             {
                 related = relatedDtos,
-                actors = people.Select(p => (Dto: actorDtos.FirstOrDefault(d => d.Id == p.Person!.Id), p.Role, p.Index, p.Image)).Where(p => p.Dto is not null)
-                    .Select(p => new { item = p.Dto, role = p.Role, picture = p.Image is null ? null : new { index = p.Index, tag = ImageCache.Tag(p.Image) } }).ToArray()
+                actors = people.Select(p => (Dto: p.Person is null ? null : actorDtos.FirstOrDefault(d => d.Id == p.Person.Id), p.Person, p.Name, p.Role, p.Index, p.Image)).Where(p => p.Person is null || p.Dto is not null)
+                    .Select(p => new { item = p.Person is null ? (object)new { Name = p.Name, Type = "Person" } : p.Dto!, role = p.Role, custom = p.Person is null, picture = p.Image is null ? null : new { index = p.Index, tag = ImageCache.Tag(p.Image) } }).ToArray()
             });
         }
         catch (Exception ex)
@@ -973,6 +979,14 @@ public class GamesController : ControllerBase
     }
 
     // The game.nfo of a game: its own folder's file and content, never another version's (every version is one game with its own metadata).
+    // The key of a version's soundtrack: names, lengths and the first and last 64 KB of its tracks (the album picture sits in the files); "" without tracks.
+    private static Dictionary<string, string> WithSoundtrack(Dictionary<string, string> parts, IReadOnlyList<GameExtra> tracks)
+    {
+        parts["soundtrack"] = tracks.Count == 0 ? string.Empty : Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(
+            string.Join("\n", tracks.Select(t => ImageCache.QuickKey(t.Path) ?? ("?" + t.Path)))))).Substring(0, 20).ToLowerInvariant();
+        return parts;
+    }
+
     private (string Folder, GameNfoContent Content)? NfoSource(GameEntry game) =>
         _filter.Images().GameFolder(game) is string folder && GameNfo.Read(Path.Combine(folder, GameNfo.FileName), _logger) is { } content ? (folder, content) : null;
 
@@ -1185,6 +1199,7 @@ public class GamesController : ControllerBase
                     {
                         id = Documents.ItemId(shortId, f.Slot, useSeed, f.Hash).ToString("N"),
                         tag = Documents.Tag(f),
+                        content = ImageCache.QuickKey(f.Path),
                         slot = f.Slot,
                         name = System.IO.Path.GetFileNameWithoutExtension(f.FileName),
                         kind = Documents.Kind(f),
@@ -1416,7 +1431,7 @@ public class GamesController : ControllerBase
                     slotNames = divided ? slotNames : null,
                     names = slotNames,
                     items = files.Skip(Math.Max(row is null ? 0 : from, 0)).Take(Screenshots.FirstTiles)
-                        .Select(f => new { id = Screenshots.ItemId(shortId, f.Slot, useSeed, f.Hash).ToString("N"), tag = Screenshots.Tag(f), slot = f.Slot, name = System.IO.Path.GetFileNameWithoutExtension(f.FileName) }).ToArray()
+                        .Select(f => new { id = Screenshots.ItemId(shortId, f.Slot, useSeed, f.Hash).ToString("N"), tag = Screenshots.Tag(f), content = ImageCache.ContentKey(f.Path), slot = f.Slot, name = System.IO.Path.GetFileNameWithoutExtension(f.FileName) }).ToArray()
                 };
             }).ToArray();
             return Ok(new { seed = useSeed, rows });
@@ -1467,7 +1482,7 @@ public class GamesController : ControllerBase
                     slotNames = divided ? slotNames : null,
                     names = slotNames,
                     items = files.Skip(Math.Max(row is null ? 0 : from, 0)).Take(Wallpapers.FirstTiles)
-                        .Select(f => new { id = Wallpapers.ItemId(shortId, f.Slot, useSeed, f.Hash).ToString("N"), tag = Wallpapers.Tag(f), slot = f.Slot, name = System.IO.Path.GetFileNameWithoutExtension(f.FileName) }).ToArray()
+                        .Select(f => new { id = Wallpapers.ItemId(shortId, f.Slot, useSeed, f.Hash).ToString("N"), tag = Wallpapers.Tag(f), content = ImageCache.ContentKey(f.Path), slot = f.Slot, name = System.IO.Path.GetFileNameWithoutExtension(f.FileName) }).ToArray()
                 };
             }).ToArray();
             return Ok(new { seed = useSeed, rows });

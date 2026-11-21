@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,6 +21,19 @@ namespace Jellyfin.Plugin.PlayniteBridge;
 public static class ArtworkPlusLink
 {
     private static VirtualItemsFilter? _filter;
+    private static volatile int _artFadeMs = -1;
+
+    /// <summary>ArtworkPlus tells its stored CharacterArt fade time (ms); the web script takes it for its own fades. Values below 0 are ignored (-1 = not set).</summary>
+    public static void SetArtworkPlusArtFadeMs(int ms)
+    {
+        if (ms >= 0)
+        {
+            _artFadeMs = Math.Min(ms, 60000);
+        }
+    }
+
+    /// <summary>The value ArtworkPlus set, or -1.</summary>
+    internal static int ArtFadeMs => _artFadeMs;
 
     /// <summary>True for a game id (any version or twin) of the game data; false for any other id.</summary>
     public static bool IsGame(Guid id) =>
@@ -306,6 +320,69 @@ public static class ArtworkPlusLinkCore
         }
 
         return Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(text.ToString())))[..20].ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// The part keys of a version (contract-version-switch-parts): the case structure (kind, depth, platform, aspect of front and back) and the content hashes of every picture the card or
+    /// the case draws; "" for a part the version does not have. Built from the same calls as <see cref="ArtKey"/>, so equal art keys give equal parts.
+    /// </summary>
+    public static Dictionary<string, string> Parts(GameData data, ImageCache images, Guid id, GameCaseData.Settings settings, string characterArtName)
+    {
+        var parts = new Dictionary<string, string>();
+        if (Game(data, id) is not GameHit hit)
+        {
+            return parts;
+        }
+
+        var game = hit.Game!;
+        static string Of(string? path) => path is null ? "" : ImageCache.ContentKey(path) ?? ("t:" + (ImageCache.Tag(path) ?? "?"));
+        static string Sha(string text) => Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(text)))[..20].ToLowerInvariant();
+        static string Aspect(string? path) => GameCaseData.TryImageSize(path, out var w, out var h) && h > 0 ? ((double)w / h).ToString("0.00000", System.Globalization.CultureInfo.InvariantCulture) : "";
+        var front = CasePart(data, images, id, "front");
+        var back = CasePart(data, images, id, "back");
+        var spine = CasePart(data, images, id, "spine");
+        var disc = CasePart(data, images, id, "disc");
+        var logo = CasePart(data, images, id, "logo");
+        var rows = GameCaseData.Build(game.Name, game.Platforms, game.Year, game.Publishers, game.Developers, images.GameFolder(game), front, back, spine, disc, logo, settings, Of);
+        string Row(string name) => rows.FirstOrDefault(r => r[0] == name)?[1] ?? string.Empty;
+        var hasCase = rows.Length > 0;
+        var isDisc = hasCase && Row("kind") == "disc";
+        parts["kind"] = Row("kind");
+        parts["depth"] = Row("depth");
+        parts["platform"] = Row("platform");
+        parts["frontAspect"] = hasCase ? Aspect(front) : "";
+        parts["backAspect"] = hasCase ? Aspect(back) : "";
+        parts["front"] = hasCase ? Of(front) : "";
+        parts["back"] = hasCase ? Of(back) : "";
+        // the spine of a version without a spine picture is the substitute (logo or name), as in the art key
+        parts["spine"] = !hasCase ? "" : spine is not null ? Of(spine) : (settings.SpineLogo && logo is not null ? "logo:" + Of(logo) : "name:" + (game.Name ?? string.Empty));
+        parts["disc"] = isDisc ? Of(disc) : "";
+        parts["logo"] = hasCase ? Of(logo) : "";
+        var booklet = "";
+        if (isDisc && settings.Booklet != "Off")
+        {
+            booklet = "booklet=" + settings.Booklet + "|" + Of(logo) + "|" + string.Join("   ·   ", (game.Publishers ?? Array.Empty<string>()).Concat(game.Developers ?? Array.Empty<string>()).Distinct().Take(2));
+            if (settings.Booklet is "BwFanart" or "BlurredFanart")
+            {
+                booklet += "|" + Of(VirtualItemsFilter.TaggedBackdrops(images, hit.Group!, game).Select(b => b.Path).FirstOrDefault());
+            }
+
+            booklet = Sha(booklet);
+        }
+
+        parts["booklet"] = booklet;
+        parts["box3d"] = Of(CasePart(data, images, id, "box3d"));
+        parts["poster"] = Of(images.Image(hit.Group!, game, ImageType.Primary));
+        parts["vanillaLogo"] = Of(VirtualItemsFilter.TaggedImage(images, hit.Group!, game, ImageType.Logo) is var (vanilla, _) ? vanilla : null);
+        var art = CharacterArtFiles.List(images.GameFolder(game), characterArtName);
+        parts["characterArt"] = art.Count == 0 ? "" : Sha(string.Join("\n", art.Select(Of)));
+        var backdrops = VirtualItemsFilter.TaggedBackdrops(images, hit.Group!, game);
+        parts["backdrops"] = backdrops.Count == 0 ? "" : Sha(string.Join("\n", backdrops.Select(b => Of(b.Path))));
+        // the backdrop Jellyfin shows first (a switch between versions with the same first backdrop leaves it standing, whatever the rest of the set)
+        parts["backdrop"] = backdrops.Count == 0 ? "" : Of(backdrops[0].Path);
+        // every backdrop's content in the order of the item's BackdropImageTags: the page finds the picture that stands in the other version's set
+        parts["backdropHashes"] = string.Join(",", backdrops.Select(b => Of(b.Path)));
+        return parts;
     }
 
     /// <summary>The rows of <see cref="ArtworkPlusLink.GameCase"/>; empty unless the user may see the game (as <see cref="IsVisibleTo"/>) and front and back exist.</summary>

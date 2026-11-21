@@ -82,7 +82,9 @@ public sealed record ExtrasIndex(IReadOnlyList<ExtrasFolder> Folders, IReadOnlyD
                 break;
             }
 
-            var tracks = OfVersion(group, version).Where(e => e.Kind == ExtraKind.Soundtrack).OrderBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).ToList();
+            // The folders of twins carry the same files: one track per file name.
+            var tracks = OfVersion(group, version).Where(e => e.Kind == ExtraKind.Soundtrack).OrderBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
             if (tracks.Count > 0)
             {
                 return tracks;
@@ -217,6 +219,10 @@ public static class GameExtras
     public static readonly string[] SupportedImageExtensions = { ".png", ".jpg", ".jpeg", ".webp", ".tbn", ".gif", ".svg" };
 
     private static readonly TimeSpan Reuse = TimeSpan.FromSeconds(10);
+
+    // An index older than Reuse is answered at once, however old, and read again in the background (one read at a time): a version picked on a page never waits for the scan of
+    // every game folder (about 0.7 s). Only when there is no index yet (the first request after the start, or other settings) the request reads it itself.
+    private static int _refreshing;
 
     // One scan at a time; the buffer is checked again inside.
     private static readonly object ScanLock = new();
@@ -375,6 +381,34 @@ public static class GameExtras
         if (!allowScan)
         {
             return ExtrasIndex.Empty;
+        }
+
+        if (cached is not null && cached.Root == root && cached.Skip == skipFolder && cached.Skip2 == skipFolder2 && cached.Sound == soundtrackFolder && cached.SlotKey == slotKey)
+        {
+            if (Interlocked.CompareExchange(ref _refreshing, 1, 0) == 0)
+            {
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        lock (ScanLock)
+                        {
+                            var fresh = Scan(root, skipFolder, soundtrackFolder, skipFolder2, slots);
+                            _cache = new CachedIndex(root, DateTime.UtcNow, fresh, skipFolder, soundtrackFolder, skipFolder2, slotKey);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // the next request reads it itself
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref _refreshing, 0);
+                    }
+                });
+            }
+
+            return cached.Index;
         }
 
         lock (ScanLock)

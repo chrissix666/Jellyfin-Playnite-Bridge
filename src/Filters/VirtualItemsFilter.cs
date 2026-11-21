@@ -151,6 +151,25 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
                 logger.LogDebug(ex, "PlayniteBridge: ItemAdded check failed");
             }
         };
+
+        // The index of the game folders is built in the background as soon as the filter exists (Jellyfin makes it at the first request), so it mostly stands before a game page is
+        // opened; a request that comes meanwhile waits for the same read (GameExtras.Index reads one at a time).
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (PlayniteReader.ResolveFolder(Plugin.Instance!.Configuration.PlayniteFolder) is not null)
+                {
+                    // the game data (the first item answer after a start built it), then the index of the game folders
+                    Data();
+                    Extras(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "PlayniteBridge: the first read of the extras index failed");
+            }
+        });
     }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -1192,6 +1211,7 @@ public sealed class VirtualItemsFilter : IAsyncActionFilter
             LocationType = LocationType.FileSystem,
             IsFolder = false,
             IndexNumber = info.Number,
+            ParentIndexNumber = info.Disc,
             Artists = info.Artists.ToArray(),
             RunTimeTicks = info.RunTimeTicks,
             Container = track.Container,

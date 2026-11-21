@@ -7,8 +7,8 @@ using MediaBrowser.Model.MediaInfo;
 
 namespace Jellyfin.Plugin.PlayniteBridge.Helpers;
 
-/// <summary>What the list shows of one soundtrack file: title, track number, artists, length, and the index of the picture embedded in it (null = none).</summary>
-public sealed record TrackInfo(string Name, int? Number, IReadOnlyList<string> Artists, long? RunTimeTicks, int? EmbeddedImage);
+/// <summary>What the list shows of one soundtrack file: title, track number, artists, length, the index of the picture embedded in it (null = none) and the disc number (null = no disc tag).</summary>
+public sealed record TrackInfo(string Name, int? Number, IReadOnlyList<string> Artists, long? RunTimeTicks, int? EmbeddedImage, int? Disc = null);
 
 /// <summary>
 /// The soundtrack of a game: the audio files directly in its "soundtrack" folder (see GameExtras.Scan). Tags come from Jellyfin's ffprobe
@@ -53,10 +53,11 @@ public static class Soundtrack
             media.IndexNumber > 0 ? media.IndexNumber : fileNumber,
             media.Artists?.Where(a => !string.IsNullOrWhiteSpace(a)).ToArray() ?? Array.Empty<string>(),
             media.RunTimeTicks > 0 ? media.RunTimeTicks : null,
-            picture?.Index);
+            picture?.Index,
+            media.ParentIndexNumber > 0 ? media.ParentIndexNumber : null);
     }
 
-    /// <summary>The order of the list: track number (those without last), then title.</summary>
+    /// <summary>The order of the list: disc (tracks without a disc tag first, as one disc), track number (those without last), then title.</summary>
     public static IOrderedEnumerable<(GameExtra Track, TrackInfo Info)> Order(IEnumerable<(GameExtra Track, TrackInfo Info)> tracks) =>
-        tracks.OrderBy(t => t.Info.Number ?? int.MaxValue).ThenBy(t => t.Info.Name, StringComparer.OrdinalIgnoreCase);
+        tracks.OrderBy(t => t.Info.Disc ?? 0).ThenBy(t => t.Info.Number ?? int.MaxValue).ThenBy(t => t.Info.Name, StringComparer.OrdinalIgnoreCase);
 }

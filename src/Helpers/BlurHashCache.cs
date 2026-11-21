@@ -397,18 +397,30 @@ public sealed class MediaInfoStore : FileStore<MediaInfoStore.Entry>
     public bool TryGet(string path, out MediaInfo info)
     {
         var found = TryGetCurrent(path, out var entry);
+        // An audio file stored without its tags (an entry of before the tags were kept) is probed again, so a track keeps its title, numbers and artists.
+        if (found && !entry.Tagged && entry.MediaStreams.Any(s => s.Type == MediaStreamType.Audio) && entry.MediaStreams.All(s => s.Type != MediaStreamType.Video))
+        {
+            found = false;
+        }
+
         info = found
-            ? new MediaInfo { Container = entry.Container, RunTimeTicks = entry.RunTimeTicks, Bitrate = entry.Bitrate, MediaStreams = entry.MediaStreams.ToList() }
+            ? new MediaInfo
+            {
+                Container = entry.Container, RunTimeTicks = entry.RunTimeTicks, Bitrate = entry.Bitrate, MediaStreams = entry.MediaStreams.ToList(),
+                Name = entry.Name, IndexNumber = entry.IndexNumber, ParentIndexNumber = entry.ParentIndexNumber, Artists = entry.Artists ?? Array.Empty<string>()
+            }
             : null!;
         return found;
     }
 
     /// <summary>Puts the answer probed for <paramref name="path"/> while it had <paramref name="ticks"/> and <paramref name="length"/>; written by the timer.</summary>
     public void Set(string path, long ticks, long length, MediaInfo info) =>
-        Set(path, new Entry(ticks, length, info.Container, info.RunTimeTicks, info.Bitrate, (info.MediaStreams ?? Array.Empty<MediaStream>()).ToArray()));
+        Set(path, new Entry(ticks, length, info.Container, info.RunTimeTicks, info.Bitrate, (info.MediaStreams ?? Array.Empty<MediaStream>()).ToArray(),
+            info.Name, info.IndexNumber, info.ParentIndexNumber, info.Artists, true));
 
-    /// <summary>One video: its ticks and length when it was probed, and the parts of the answer the plugin uses.</summary>
-    public sealed record Entry(long Ticks, long Length, string? Container, long? RunTimeTicks, int? Bitrate, MediaStream[] MediaStreams) : IFileState;
+    /// <summary>One file: its ticks and length when it was probed, and the parts of the answer the plugin uses (the tags of a soundtrack track included; Tagged = they were kept).</summary>
+    public sealed record Entry(long Ticks, long Length, string? Container, long? RunTimeTicks, int? Bitrate, MediaStream[] MediaStreams,
+        string? Name = null, int? IndexNumber = null, int? ParentIndexNumber = null, string[]? Artists = null, bool Tagged = false) : IFileState;
 }
 
 /// <summary>
