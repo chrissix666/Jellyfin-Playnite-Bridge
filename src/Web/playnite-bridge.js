@@ -7919,6 +7919,29 @@
         observer.observe(options, { childList: true });
         dlg.pbWatch = observer;
         update();
+        // Jellyfin 10.10.7's filter dialog joins the server's years (numbers) with the checked years of its query (texts), so a checked year is drawn
+        // twice (fixed upstream in 10.11). The dialog draws the years in one go; the second copy of a year is dropped.
+        var years = kind === 'dialog' ? dlg.querySelector('.yearFilters .filterOptions') : null;
+        if (years) {
+            var dropDoubleYears = function () {
+                var seen = {};
+                Array.prototype.slice.call(years.querySelectorAll('label')).forEach(function (label) {
+                    var input = label.querySelector('input');
+                    var year = input ? input.getAttribute('data-filter') : null;
+                    if (year === null) {
+                        return;
+                    }
+                    if (seen[year]) {
+                        label.parentNode.removeChild(label);
+                    }
+                    seen[year] = true;
+                });
+            };
+            var yearObserver = new MutationObserver(dropDoubleYears);
+            yearObserver.observe(years, { childList: true });
+            dlg.pbWatch = { disconnect: function () { observer.disconnect(); yearObserver.disconnect(); } };
+            dropDoubleYears();
+        }
     }
 
     new MutationObserver(function (records) {

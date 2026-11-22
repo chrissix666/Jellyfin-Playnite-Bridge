@@ -13,16 +13,16 @@
         "changelog": "Release for Jellyfin 12.0+",
         "targetAbi": "12.0.0.0",
         "sourceUrl": "https://github.com/chrissix666/Jellyfin-Playnite-Bridge/releases/download/v2.0.0.0/PlayniteBridge_2.0.0.0_jellyfin-12.x.zip",
-        "checksum": "ec5bb0cab5a5f3f187b594dc0ab9dfc9",
-        "timestamp": "2026-11-21T21:40:28Z"
+        "checksum": "6da0609c04a11afbf1dae465ddce3be5",
+        "timestamp": "2026-11-22T14:30:24Z"
       },
       {
         "version": "1.0.0.0",
         "changelog": "Release for Jellyfin 10.10.7",
         "targetAbi": "10.10.7.0",
         "sourceUrl": "https://github.com/chrissix666/Jellyfin-Playnite-Bridge/releases/download/v1.0.0.0/PlayniteBridge_1.0.0.0_jellyfin-10.10.7.zip",
-        "checksum": "14a2b5c91de46c8ea5b99c8eea97b1ee",
-        "timestamp": "2026-11-21T21:40:28Z"
+        "checksum": "dd21aba5f837fe7df3c1446919c316e5",
+        "timestamp": "2026-11-22T14:30:23Z"
       }
     ]
   }
