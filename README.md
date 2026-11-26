@@ -23,6 +23,8 @@ Please also have a look at my other plugins:
 - [VideoOSD Tweaks and Candy](https://github.com/chrissix666/Jellyfin-VideoOSD-Tweaks-Candy): puts you in full control of the Jellyfin video player OSD
 - [Destroy](https://github.com/chrissix666/Jellyfin-Destroy): turns the Jellyfin page you are looking at into a game level
 - [VisoMaster Bridge](https://github.com/chrissix666/Jellyfin-VisoMaster-Bridge): swaps faces in the film you are watching, with [VisoMaster Fusion](https://github.com/VisoMasterFusion/VisoMaster-Fusion)
+- [Globe](https://github.com/chrissix666/Jellyfin-Globe): your Jellyfin libraries as a 3D globe
+- [Essentials](https://github.com/chrissix666/Jellyfin-Essentials): eight Jellyfin Web additions in one plugin
 
 ---
 
@@ -431,6 +433,8 @@ When you pick another version in the dropdown, the pictures follow or stay. For 
 - **Follows Version:** shows the picked version's picture. Off keeps the first version's.
 - **Keep When Version Has None:** keeps the first version's picture when the picked version has none
 
+A version with the same picture stays in place and does not redraw. A version with other artwork keeps the old picture on screen until the new one has its picture. Switching versions between 2D, Box 3D and a 3D case is one clean cut, without fades. A game page you open still fades in briefly.
+
 ### Display
 
 **Settings From** decides whose options draw the artwork of game pages:
@@ -444,6 +448,15 @@ Playnite Bridge's own options:
 
 - **Poster size:** 10 to 200 percent
 - **Anchor:** Default, Top left, Top center, Top right, Center left, Center, Center right, Bottom left, Bottom center, Bottom right
+
+**Box 3D**
+
+- **Show Box 3D:** shows the Box 3D picture of a game version in place of its poster. Off by default. The picture is held back until it stands, so no 2D poster flashes first.
+- **Size:** 10 to 200 percent, and **Anchor**
+
+**Three.js Case**
+
+- **Three.js Case Games:** read only. Shows whether ArtworkPlus draws 3D cases for games; set it in ArtworkPlus under Case. Hidden without ArtworkPlus.
 
 **LogoArt**
 
@@ -486,7 +499,7 @@ A game can come with more than a poster. Everything below is read from the game'
 Each extras area has the same set of display options:
 
 - **Display:** One Row per Slot, Merged, or Adaptive. Merged joins the slots ticked in Merge, and Adaptive does so only while two of them have files.
-- **Keep Slots Together** and **Show Dividers**
+- **Keep Slots Together**, **Show Dividers** and **Show Dividers Always** (keeps the divider line between rows even when only one row has content)
 - **Show Title** and **Show Subtext**
 - **Tile Shape:** Landscape, Portrait, Square or Auto
 - **Picture Fit:** Adaptive, Crop or Blur Fill, with a **Crop Limit** in percent for Adaptive
@@ -640,7 +653,7 @@ Five real examples. Only the id is needed. The name is a fallback for when you h
 ```
 
 - **`<media>`** points to a movie (`tmdb` with `moviename`), a series (`tvdb` with `showname`) or a collection (`tmdbset` with `setname`) in your library, by id or, without an id, by name. They show as **Related Media**.
-- **`<actor>`** lists the cast with `name` and `role`. A picture named like the actor, with spaces turned into underscores (`Elliot_Page.jpg`, also `.png`, `.jpeg` or `.webp`), in the game's `.actors` folder replaces the person's own picture.
+- **`<actor>`** lists the cast with `name` and `role`. A picture named like the actor, with spaces turned into underscores (`Elliot_Page.jpg`, also `.png`, `.jpeg` or `.webp`), in the game's `.actors` folder replaces the person's own picture. An actor Jellyfin does not know stays in the cast row as a card without a link: name, role and the picture from `.actors`, if there is one.
 - An optional `<order>` inside a block sets the order. Without it the file order counts.
 
 **Settings**
@@ -685,14 +698,13 @@ Trailers and special features, played in Jellyfin's own player.
 - **Enable Trailers:** named as Jellyfin names local trailers, in a `trailers` folder or with the `-trailer` ending
 - **Enable Special Features:** named as Jellyfin names extras, from the game folder or the Extras Folder
 - **Trailers of Other Versions** and **Special Features of Other Versions:** add those of the other versions to the shown version's (All Versions) or not (This Version Only)
-- **Enable Steam Special Features:** the videos of the game's Steam store page, played in Jellyfin's player next to the special features. This asks Steam's public store for the game's AppID.
-- **Steam Special Features Placement:** before or after the local ones
-- **Special Features Title:** Special Features, Extras, Bonus Material or your own
+- **Enable Steam Special Features:** the videos of the game's Steam store page, played in Jellyfin's player. This asks Steam's public store for the game's AppID. Steam is a row of the Videos table (below).
+- **Special Features Title:** Special Features, Extras, Bonus Material, Videos or your own
 - **Show Video Icon:** the camera on the cards of special features
 - **Show Trickplay:** the seek bar thumbnails of extra videos that have a trickplay folder next to them
 - **Create Now** and **Clear Trickplay:** Create Now runs Sync Extras, Clear Trickplay deletes every trickplay folder permanently
 
-Special features sort into types and slots: extras, clips, behind the scenes, deleted scenes, interviews, scenes, samples, shorts and featurettes, plus ten slots of your own, each in a folder you name. Each type or slot can be shown, merged into Jellyfin's Special Features row, or get a row of its own with its own label.
+Special features sort into types and slots: extras, clips, behind the scenes, deleted scenes, interviews, scenes, samples, shorts and featurettes, plus the Steam row and ten slots of your own, each in a folder you name. They all stand in **one table**. Each row can be shown, merged into Jellyfin's Special Features row, or get a row of its own with its own label. The Steam row's label can be Steam Special Features, Steam Videos, Steam Trailers or your own. The arrows set the order. mkv files are accepted.
 
 A custom thumbnail is an image named like the video, `name.*` or `name-poster.*`, next to it. Without one, Sync Extras makes one.
 
@@ -709,6 +721,7 @@ Videos that play behind a game page instead of its backdrop.
 - **On Version Switch:** Look for New Theme, or Keep Playing
 - **Video Volume:** 0 is muted, and any sound pauses the theme music
 - **Delayed Start** in seconds, optionally before every video
+- **Start Position:** From Beginning or Random Timestamp, with **Random Start Min** and **Max** in percent of the length
 
 ### Theme Music
 
@@ -721,6 +734,7 @@ Music that plays on a game page.
 - **On Version Switch:** Look for New Theme, or Keep Playing
 - **Theme Volume**
 - **Delayed Start**, optionally before every song
+- **Start Position:** From Beginning or Random Timestamp, with **Random Start Min** and **Max** in percent of the length
 - **Fade In** and **Fade Out** in seconds, optionally at every song
 
 ### Soundtrack
@@ -732,6 +746,8 @@ The audio files in a game's soundtrack folder, as a row on its page, played by J
 - **Soundtrack Folder:** `soundtrack` by default, holding the audio files and the cover
 - **Soundtrack of Other Versions:** All Versions or This Version Only
 - **Use Soundtrack as Theme Music:** plays the soundtrack as theme music when the game has no theme of its own
+
+The tracks are sorted by disc, then by track number.
 
 ### Player Artwork
 
@@ -761,6 +777,8 @@ Playnite Bridge works together with two of my other plugins. Both are optional.
 **ArtworkPlus**
 
 [ArtworkPlus](https://github.com/chrissix666/Jellyfin-ArtworkPlus) shows the artwork Jellyfin leaves unused: cases that open and spin their disc, keyart, extra posters, characterart and backdrops almost everywhere. It works with your games too. When it is installed and **Settings From** (Artwork tab, Display) is on ArtworkPlus, it takes over the artwork of game pages with all its options. Playnite Bridge then answers for the game itself: which pictures a game has, which version's pictures show, which games a collection holds and which backdrops belong to them. Every game and every version stays independent.
+
+With ArtworkPlus, game pages can show a 3D game case (Game Disc Case or Game Box Case) when **Three.js Case Games** is on there.
 
 Set Settings From to Playnite Bridge and its own options draw the artwork.
 
