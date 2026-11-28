@@ -1,47 +1,3 @@
-
-
-https://github.com/user-attachments/assets/0e4076a4-6d39-495e-8874-bb845be2fe19
-
-
-
-https://github.com/user-attachments/assets/5b974c52-952e-4e04-9eb2-72aac28bb8b9
-
-
-
-https://github.com/user-attachments/assets/b4ac2612-46d5-418e-99da-eb5311e34cd1
-
-
-
-https://github.com/user-attachments/assets/35b72322-85b7-4bd1-b915-811e7e8e6fbf
-
-
-
-https://github.com/user-attachments/assets/3a4990f9-becb-4581-87fc-2da356d5222b
-
-
-
-https://github.com/user-attachments/assets/af956225-707f-4de9-ba56-2d123db08c12
-
-
-
-https://github.com/user-attachments/assets/e1af9279-5556-45e6-a00f-5a46294f569a
-
-
-
-https://github.com/user-attachments/assets/75522727-74bf-4dcd-9d5c-2b4e1470d965
-
-
-
-https://github.com/user-attachments/assets/3edbe65d-cd61-462d-ac26-fab0a0f2f760
-
-
-
-https://github.com/user-attachments/assets/6ba7f4c5-c0a2-4d92-872f-6eacca0a2466
-
-
-
-https://github.com/user-attachments/assets/59785662-c727-4fa7-890f-31e838b20462
-
 [Jellyfin Projects](https://linktr.ee/JellyfinProjects) | [Kodi Projects](https://linktr.ee/KodiProjects)
 
 ---
@@ -110,6 +66,7 @@ Please also have a look at my other plugins:
   - [Theme Music](#theme-music)
   - [Soundtrack](#soundtrack)
   - [Player Artwork](#player-artwork)
+  - [Files and Folders](#files-and-folders)
 - [Curator](#curator)
 - [Works with ArtworkPlus and VideoOSD Tweaks and Candy](#works-with-artworkplus-and-videoosd-tweaks-and-candy)
 - [Parental Controls](#parental-controls)
@@ -297,6 +254,11 @@ Folders larger than the Recycle Bin limit of the drive are deleted permanently.
 
 ## Library View
 
+https://github.com/user-attachments/assets/e1af9279-5556-45e6-a00f-5a46294f569a
+
+**Library View.** Filter by game feature, sort, browse the results and open a game.<br>
+*Also in this clip:* [CharacterArt](#display) on the game page it ends on.
+
 ### Tiles
 
 How the games look in the library.
@@ -377,6 +339,11 @@ Which rows of a game page are shown: Series, Genres, Developer, Publisher, Platf
 - **Show More Like This:** shows Jellyfin's More Like This row on a game page
 
 ### Version Dropdown
+
+https://github.com/user-attachments/assets/3edbe65d-cd61-462d-ac26-fab0a0f2f760
+
+**Version Dropdown.** Pick another version of a game and the page follows with that version's own artwork.<br>
+*Also in this clip:* [Artwork on Version Change](#artwork-on-version-change), the 3D case of [ArtworkPlus](https://github.com/chrissix666/Jellyfin-ArtworkPlus) (only the PlayStation version has a different case).
 
 - **Show Other Platforms:** lists the same game from another store in the dropdown
 - **Show Editions:** lists other versions of the game, such as Remastered
@@ -502,6 +469,16 @@ Playnite Bridge's own options:
 
 - **Three.js Case Games:** read only. Shows whether ArtworkPlus draws 3D cases for games; set it in ArtworkPlus under Case. Hidden without ArtworkPlus.
 
+https://github.com/user-attachments/assets/3a4990f9-becb-4581-87fc-2da356d5222b
+
+**Three.js Case.** Turn it around, open it, spin the disc, look at the booklet. A double click closes it and glides it home. The case comes from [ArtworkPlus](https://github.com/chrissix666/Jellyfin-ArtworkPlus).<br>
+*Also in this clip:* [Theme Music](#theme-music).
+
+https://github.com/user-attachments/assets/75522727-74bf-4dcd-9d5c-2b4e1470d965
+
+**Three.js Case, box variant.** No disc: turn it, look at its side, a double click resets it.<br>
+*Also in this clip:* [Theme Music](#theme-music).
+
 **LogoArt**
 
 What goes into the clearlogo slot of the game page, how big it is and where it sits.
@@ -515,6 +492,11 @@ What goes into the clearlogo slot of the game page, how big it is and where it s
 **CharacterArt**
 
 Characters cut out and placed on the game page, in one of four positions: top left, top right, bottom left, bottom right. Each position has its own scale, size, align, offset and fullscreen offset. Multi-image slideshow with order, playback, random start, display duration, transition duration and an optional delay before the first image.
+
+https://github.com/user-attachments/assets/b4ac2612-46d5-418e-99da-eb5311e34cd1
+
+**CharacterArt.** The figures on a game page change in a slideshow.<br>
+*Also in this clip:* [Theme Music](#theme-music).
 
 **Backdrops: Detail View**
 
@@ -554,6 +536,16 @@ Each extras area has the same set of display options:
 ### Connections
 
 Connections link a game to the rest of your Jellyfin library, through a file named `game.nfo` in the game's folder.
+
+https://github.com/user-attachments/assets/5b974c52-952e-4e04-9eb2-72aac28bb8b9
+
+**Connections.** The cast shown as their characters with custom pictures, next to related media.<br>
+*Also in this clip:* [Version Dropdown](#version-dropdown) with two different 3D cases (PS3 and PS4 Remastered); the [Screenshots](#screenshots), [Videos](#videos) and [Documents](#documents) rows pass by.
+
+https://github.com/user-attachments/assets/6ba7f4c5-c0a2-4d92-872f-6eacca0a2466
+
+**Connections.** A second example: the cast as the characters, with custom pictures.<br>
+*Also in this clip:* [Version Dropdown](#version-dropdown), the 3D case; the [Screenshots](#screenshots), [Videos](#videos) and [Documents](#documents) rows pass by.
 
 Five real examples. Only the id is needed. The name is a fallback for when you have no id, and it can stay empty. The `<order>` line sets the order inside each kind. The comments are free.
 
@@ -730,6 +722,11 @@ Wallpapers and artwork as rows that open in Jellyfin's viewer.
 
 Screenshots as rows that open in Jellyfin's viewer.
 
+https://github.com/user-attachments/assets/35b72322-85b7-4bd1-b915-811e7e8e6fbf
+
+**Screenshots.** Open a screenshot in the viewer, step to the next, close it.<br>
+*Also in this clip:* [Soundtrack](#soundtrack), the 3D case; the [Videos](#videos) and [Documents](#documents) rows pass by.
+
 - **Folder:** `screenshots` by default
 - **Slots:** title, select, gameplay, gameover, highscores, plus five of your own
 - **Flat:** reads only the images directly in the folder as one row
@@ -737,6 +734,11 @@ Screenshots as rows that open in Jellyfin's viewer.
 ### Videos
 
 Trailers and special features, played in Jellyfin's own player.
+
+https://github.com/user-attachments/assets/0e4076a4-6d39-495e-8874-bb845be2fe19
+
+**Videos.** The intro plays in Jellyfin's own player, with the game's logo over the picture.<br>
+*Also in this clip:* [Documents](#documents) (the Strategy Guide, paged through), [Soundtrack](#soundtrack), [Player Artwork](#player-artwork).
 
 - **Enable Videos:** off leaves out trailers, special features and everything below from game pages
 - **Enable Trailers:** named as Jellyfin names local trailers, in a `trailers` folder or with the `-trailer` ending
@@ -755,6 +757,11 @@ A custom thumbnail is an image named like the video, `name.*` or `name-poster.*`
 ### Theme Videos
 
 Videos that play behind a game page instead of its backdrop.
+
+https://github.com/user-attachments/assets/59785662-c727-4fa7-890f-31e838b20462
+
+**Theme Videos.** The game's theme video as the page backdrop.<br>
+*Also in this clip:* the 3D case, the [Screenshots](#screenshots) and [Videos](#videos) rows scrolled sideways, a [Documents](#documents) card, [Soundtrack](#soundtrack), [Theme Music](#theme-music).
 
 - **Enable Theme Videos**
 - **Sources:** theme videos, trailers and special features, ticked and ordered with the arrows
@@ -785,6 +792,11 @@ Music that plays on a game page.
 
 The audio files in a game's soundtrack folder, as a row on its page, played by Jellyfin's player.
 
+https://github.com/user-attachments/assets/af956225-707f-4de9-ba56-2d123db08c12
+
+**Soundtrack.** The album opens into its tracks, scrolled sideways.<br>
+*Also in this clip:* the 3D case with its disc and the double-click reset, [Theme Music](#theme-music).
+
 - **Enable Soundtrack**
 - **Soundtrack Title:** Soundtrack, Music, Original Soundtrack or your own
 - **Soundtrack Folder:** `soundtrack` by default, holding the audio files and the cover
@@ -798,6 +810,262 @@ The tracks are sorted by disc, then by track number.
 While a trailer or extra video plays, the player can show the game's artwork over the video. Layers: logo, clearart, disc, poster, thumb, banner and backdrops, each with its own position, offsets, maximum size and layer order.
 
 **Settings From** decides whose values draw it: **Playnite Bridge** or **VideoOSD**. With VideoOSD, the Artwork addon of [VideoOSD Tweaks and Candy](https://github.com/chrissix666/Jellyfin-VideoOSD-Tweaks-Candy) draws the player artwork.
+
+### Files and Folders
+
+Every game has a folder of its own, and the files that make up its page sit in it: artwork, a `game.nfo` for the Connections, links, and the extras (documents, wallpapers, screenshots, videos, soundtrack, theme music and theme videos). The extras can live in the same folder, **merged**, or in a folder of their own, **separated**. **Separate Extras Folder** on the General tab decides, and the extras folder is found by the short number in its name.
+
+**Everything is optional, and most names are your choice.** The file names of the artwork, the folder names of the extras areas and their slots, the label of every slot, the name of the Links folder and the names of the shortcuts are defaults that you can change in the settings. Two things are fixed: the short number in square brackets in the name of a game folder, and the file name `game.nfo`. Every file and every folder is optional: a page shows a row only for what it finds.
+
+**Separated**
+
+The metadata folder of a game, with the artwork and the data:
+
+<p><img src="images/screenshots/explorer-metadata-folder.png" alt="The metadata folder of Max Payne 3 in Explorer" width="720"></p>
+
+The extras folder of the same game. The two shortcuts (`extras` and `metadata`) are made by the [Curator](#curator) and lead from one folder to the other:
+
+<p><img src="images/screenshots/explorer-extras-folder.png" alt="The extras folder of Max Payne 3 in Explorer" width="720"></p>
+
+<details>
+<summary>An example with everything Playnite Bridge reads, separated</summary>
+
+A made-up game. Every name is a default.
+
+```
+Games\Example Game [1a2b3c4d]\
+├── poster.jpg    # Cover
+├── backdrop.jpg    # Backdrop slideshow
+├── backdrop1.jpg
+├── backdrop2.jpg ...    # as many as you like
+├── banner.jpg    # Banner
+├── landscape.jpg    # Thumb
+├── square.jpg    # Square
+├── clearlogo.png    # Logo
+├── clearart.png    # Clearart
+├── characterart.png    # CharacterArt
+├── discart.png    # Disc
+├── icon.png    # Icon
+├── box3d.png    # Box 3D
+├── boxfront.jpg    # Box Front
+├── boxback.jpg    # Box Back
+├── boxspine.jpg    # Box Spine
+├── game.nfo    # Connections
+├── links\    # Links row
+│   ├── Steam.url
+│   ├── GOG.url
+│   ├── Epic.url
+│   ├── Wikipedia.url
+│   └── Official Website.url
+└── extras.lnk    # to the Extras folder
+
+EXTRAS\Example Game [1a2b3c4d]\
+├── documents\    # Documents row
+│   ├── manuals\
+│   │   └── Manual (EN).pdf
+│   ├── guides\
+│   │   └── Strategy Guide (EN).pdf
+│   ├── maps\
+│   │   └── World Map.pdf
+│   ├── books\
+│   │   └── Artbook.cbz
+│   ├── articles\
+│   │   └── Review.pdf
+│   └── reference-cards\    # your own slot
+│       └── Cheat Sheet.pdf
+├── wallpapers\    # Wallpapers and Artwork
+│   ├── wallpapers\
+│   │   └── wallpaper-01.jpg
+│   ├── fanart\
+│   │   └── fanart-01.jpg
+│   ├── concept\
+│   │   └── concept-01.jpg
+│   ├── posters\
+│   │   └── poster-01.jpg
+│   ├── boxart\
+│   │   └── boxart-01.jpg
+│   ├── renders\
+│   │   └── render-01.jpg
+│   ├── logos\
+│   │   └── logo-01.png
+│   ├── icons\
+│   │   └── icon-01.png
+│   └── cosplay\    # your own slot
+│       └── cosplay-01.jpg
+├── screenshots\    # Screenshots row
+│   ├── title\
+│   │   └── title-01.jpg
+│   ├── select\
+│   │   └── select-01.jpg
+│   ├── gameplay\
+│   │   └── gameplay-01.jpg
+│   ├── gameover\
+│   │   └── gameover-01.jpg
+│   ├── highscores\
+│   │   └── highscores-01.jpg
+│   └── menus\    # your own slot
+│       └── menus-01.jpg
+├── videos\    # Videos row
+│   ├── trailers\
+│   │   └── Launch Trailer.mp4
+│   ├── extras\
+│   │   └── Extras-01.mp4
+│   ├── clips\
+│   │   └── Clips-01.mp4
+│   ├── behind the scenes\
+│   │   └── Behind-The-Scenes-01.mp4
+│   ├── deleted scenes\
+│   │   └── Deleted-Scenes-01.mp4
+│   ├── interviews\
+│   │   └── Interviews-01.mp4
+│   ├── scenes\
+│   │   └── Scenes-01.mp4
+│   ├── samples\
+│   │   └── Samples-01.mp4
+│   ├── shorts\
+│   │   └── Shorts-01.mp4
+│   ├── featurettes\
+│   │   └── Featurettes-01.mp4
+│   ├── intro\    # your own slot
+│   │   └── Intro (EN).mp4
+│   ├── lets-play\    # your own slot
+│   │   └── Lets-Play-01.mp4
+│   ├── captures\    # your own slot
+│   │   └── Captures-01.mp4
+│   └── speedrun\    # your own slot
+│       └── Speedrun-01.mp4
+├── soundtrack\    # Soundtrack row
+│   ├── 01 Main Theme.mp3
+│   ├── 02 The Journey.mp3
+│   ├── 03 Finale.mp3
+│   └── folder.jpg    # album cover
+├── backdrops\    # Theme Videos
+│   └── Main Menu Theme.mp4
+├── theme.mp3    # Theme Music
+├── links\    # Links row
+│   └── (the same .url files)
+└── metadata.lnk    # to the game folder
+```
+
+</details>
+
+**Merged**
+
+With Separate Extras Folder off, the extras folders sit next to the artwork in the one game folder:
+
+<details>
+<summary>The same example, merged</summary>
+
+```
+Games\Example Game [1a2b3c4d]\
+├── poster.jpg    # Cover
+├── backdrop.jpg    # Backdrop slideshow
+├── backdrop1.jpg
+├── backdrop2.jpg ...    # as many as you like
+├── banner.jpg    # Banner
+├── landscape.jpg    # Thumb
+├── square.jpg    # Square
+├── clearlogo.png    # Logo
+├── clearart.png    # Clearart
+├── characterart.png    # CharacterArt
+├── discart.png    # Disc
+├── icon.png    # Icon
+├── box3d.png    # Box 3D
+├── boxfront.jpg    # Box Front
+├── boxback.jpg    # Box Back
+├── boxspine.jpg    # Box Spine
+├── game.nfo    # Connections
+├── links\    # Links row
+│   ├── Steam.url
+│   ├── GOG.url
+│   ├── Epic.url
+│   ├── Wikipedia.url
+│   └── Official Website.url
+├── documents\    # Documents row
+│   ├── manuals\
+│   │   └── Manual (EN).pdf
+│   ├── guides\
+│   │   └── Strategy Guide (EN).pdf
+│   ├── maps\
+│   │   └── World Map.pdf
+│   ├── books\
+│   │   └── Artbook.cbz
+│   ├── articles\
+│   │   └── Review.pdf
+│   └── reference-cards\    # your own slot
+│       └── Cheat Sheet.pdf
+├── wallpapers\    # Wallpapers and Artwork
+│   ├── wallpapers\
+│   │   └── wallpaper-01.jpg
+│   ├── fanart\
+│   │   └── fanart-01.jpg
+│   ├── concept\
+│   │   └── concept-01.jpg
+│   ├── posters\
+│   │   └── poster-01.jpg
+│   ├── boxart\
+│   │   └── boxart-01.jpg
+│   ├── renders\
+│   │   └── render-01.jpg
+│   ├── logos\
+│   │   └── logo-01.png
+│   ├── icons\
+│   │   └── icon-01.png
+│   └── cosplay\    # your own slot
+│       └── cosplay-01.jpg
+├── screenshots\    # Screenshots row
+│   ├── title\
+│   │   └── title-01.jpg
+│   ├── select\
+│   │   └── select-01.jpg
+│   ├── gameplay\
+│   │   └── gameplay-01.jpg
+│   ├── gameover\
+│   │   └── gameover-01.jpg
+│   ├── highscores\
+│   │   └── highscores-01.jpg
+│   └── menus\    # your own slot
+│       └── menus-01.jpg
+├── videos\    # Videos row
+│   ├── trailers\
+│   │   └── Launch Trailer.mp4
+│   ├── extras\
+│   │   └── Extras-01.mp4
+│   ├── clips\
+│   │   └── Clips-01.mp4
+│   ├── behind the scenes\
+│   │   └── Behind-The-Scenes-01.mp4
+│   ├── deleted scenes\
+│   │   └── Deleted-Scenes-01.mp4
+│   ├── interviews\
+│   │   └── Interviews-01.mp4
+│   ├── scenes\
+│   │   └── Scenes-01.mp4
+│   ├── samples\
+│   │   └── Samples-01.mp4
+│   ├── shorts\
+│   │   └── Shorts-01.mp4
+│   ├── featurettes\
+│   │   └── Featurettes-01.mp4
+│   ├── intro\    # your own slot
+│   │   └── Intro (EN).mp4
+│   ├── lets-play\    # your own slot
+│   │   └── Lets-Play-01.mp4
+│   ├── captures\    # your own slot
+│   │   └── Captures-01.mp4
+│   └── speedrun\    # your own slot
+│       └── Speedrun-01.mp4
+├── soundtrack\    # Soundtrack row
+│   ├── 01 Main Theme.mp3
+│   ├── 02 The Journey.mp3
+│   ├── 03 Finale.mp3
+│   └── folder.jpg    # album cover
+├── backdrops\    # Theme Videos
+│   └── Main Menu Theme.mp4
+└── theme.mp3    # Theme Music
+```
+
+</details>
 
 ---
 
